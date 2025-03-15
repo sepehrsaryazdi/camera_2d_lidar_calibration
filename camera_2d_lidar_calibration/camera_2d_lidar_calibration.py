@@ -7,6 +7,8 @@ import os
 from rclpy.serialization import deserialize_message
 import cv2
 import cv_bridge
+import tkinter as tk
+from tkinter import ttk
 from pathlib import Path
 import sensor_msgs_py.point_cloud2 as pc2
 import numpy as np
@@ -35,6 +37,33 @@ class ImageAndScans:
         return self.image.copy()
     def get_scans(self) -> list[LaserScan]:
         return self.scans.copy()
+    
+
+
+class SelectPointsInterface:
+    """
+    Class for selecting lidar points corresponding to back wall.
+    """
+
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("Camera 2D LiDAR Calibration Menu")
+        self.root.geometry("520x120")
+        self.menubar = tk.Menu(self.root)        
+        self.app = tk.Frame(self.root)
+        self.button_frame = ttk.Frame(self.root)    
+        self.button_frame.pack(side="top", pady=(20,0))
+
+        # self.examples_button= ttk.Button(self.button_frame, text="Examples")
+        # self.examples_button.pack(side="left", padx=25, ipadx=20, ipady=20)
+        # self.examples_button.bind("<ButtonPress>", lambda event : self.show_examples(event))
+
+        # self.minimise_button= ttk.Button(self.button_frame, text="Minimise X-coordinates")
+        # self.minimise_button.pack(side="left", padx=25, ipadx=20, ipady=20)
+        # self.minimise_button.bind("<ButtonPress>", lambda event : self.show_minimise_window(event))
+
+    def show(self):
+        self.app.mainloop()
     
 class CameraParameters:
     def __init__(self, camera_intrinsic_matrix, k1,k2,p1,p2,k3):
@@ -127,6 +156,9 @@ def main(args=None):
         image_and_scan_list = bag_to_image_and_scans.get_image_and_laser_scans()
 
         print(image_and_scan_list[0].concatenate_scans_to_points())
+
+        select_points_interface = SelectPointsInterface()
+        select_points_interface.show()
 
         # rclpy.spin(bag_to_image_and_scans)
     except (KeyboardInterrupt, ExternalShutdownException):
