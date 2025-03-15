@@ -20,16 +20,18 @@ from scipy.spatial.distance import pdist, squareform
 import time
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn import linear_model
+from datetime import datetime
 import laser_geometry
 home = Path.home()
 
 
 class ImageAndScans:
-    def __init__(self, image:np.ndarray, scans:list[LaserScan]):
+    def __init__(self, image:np.ndarray, scans:list[LaserScan], bag_name:str):
         assert isinstance(image, np.ndarray), "Error: image must be of the form cv2.self.root"
         assert isinstance(scans , list), "Error: scans must be a list."
         for scan in scans:
             assert isinstance(scan, LaserScan), "Error: scans must contain LaserScan objects."
+        self.bag_name_ = bag_name
         self.image_ = image
         self.scans_ = scans
         self.selected_points_bool_ = False
@@ -41,6 +43,8 @@ class ImageAndScans:
         self.undistorted_image_bool_ = False
         self.undistorted_image_ = None
 
+    def get_bag_name(self):
+        return self.bag_name_
 
     def concatenate_scans_to_points(self, indices=[0]) -> np.ndarray:
         scans = self.get_scans()
@@ -109,7 +113,7 @@ class ImageAndScans:
             return None
 
     def copy(self):
-        image_and_scans_copy = ImageAndScans(self.get_image(), self.get_scans())
+        image_and_scans_copy = ImageAndScans(self.get_image(), self.get_scans(), self.get_bag_name())
         if self.has_undistored_image():
             image_and_scans_copy.set_undistorted_image(self.get_undistorted_image())
         if self.has_selected_points():
@@ -435,14 +439,17 @@ class BagToImageAndScans(Node):
 
         self.camera_params = CameraParameters(np.array(camera_intrinsic_matrix).reshape(3,3), k1,k2,p1,p2,k3)
 
+
         self.image_and_scan_list = []
 
         self.image_publisher = self.create_publisher(Image, '/image', 10) # publisher for real-time image monitoring if necessary
         self.lidar_publisher = self.create_publisher(LaserScan, '/scan', 10) # publisher for real-time lidar monitoring if necessary
 
         bags_location = f'{home}/ros2_ws/src/camera_2d_lidar_calibration/bags/'
+
+        self.bags = os.listdir(bags_location)
         
-        for bag_file_name in os.listdir(bags_location):
+        for bag_file_name in self.bags:
             self.get_logger().info('Processing ' + bag_file_name + 'bag file.')
             self.reader = rosbag2_py.SequentialReader()
             storage_options = rosbag2_py.StorageOptions(
@@ -452,9 +459,9 @@ class BagToImageAndScans(Node):
             converter_options = rosbag2_py.ConverterOptions('', '')
             self.reader.open(storage_options, converter_options)
 
-            self.image_and_scan_list.append(self.extract_image_and_scans())
+            self.image_and_scan_list.append(self.extract_image_and_scans(bag_file_name))
 
-    def extract_image_and_scans(self) -> ImageAndScans:
+    def extract_image_and_scans(self,bag_file_name) -> ImageAndScans:
         selected_image = False
         image = None
         scans = []
@@ -475,7 +482,7 @@ class BagToImageAndScans(Node):
                 decoded_data = deserialize_message(msg[1], LaserScan) # get serialized version of message and decode it
                 self.lidar_publisher.publish(msg[1])
                 scans.append(decoded_data)      
-        return ImageAndScans(image, scans)
+        return ImageAndScans(image, scans, bag_file_name)
 
     def get_camera_params(self) -> list[CameraParameters]:
         return self.camera_params
@@ -656,25 +663,25 @@ def ransac(points:np.ndarray):
 
     # Compare estimated coefficients
 
-    lw = 2
-    plt.scatter(
-        points[inlier_mask,0], points[inlier_mask,1], color="gold", marker=".", label="Inliers"
-    )
-    plt.scatter(
-        points[outlier_mask,0], points[outlier_mask,1], color="red", marker=".", label="Outliers"
-    )
-    plt.plot(
-        reconstructed_line[:,0],
-        reconstructed_line[:,1],
-        color="cornflowerblue",
-        linewidth=lw,
-        label="RANSAC regressor",
-    )
-    plt.legend(loc="lower right")
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.title("Detected 2D LiDAR Wall")
-    plt.show()
+    # lw = 2
+    # plt.scatter(
+    #     points[inlier_mask,0], points[inlier_mask,1], color="gold", marker=".", label="Inliers"
+    # )
+    # plt.scatter(
+    #     points[outlier_mask,0], points[outlier_mask,1], color="red", marker=".", label="Outliers"
+    # )
+    # plt.plot(
+    #     reconstructed_line[:,0],
+    #     reconstructed_line[:,1],
+    #     color="cornflowerblue",
+    #     linewidth=lw,
+    #     label="RANSAC regressor",
+    # )
+    # plt.legend(loc="lower right")
+    # plt.xlabel("x")
+    # plt.ylabel("y")
+    # plt.title("Detected 2D LiDAR Wall")
+    # plt.show()
     
     return reconstructed_line
 
@@ -683,6 +690,37 @@ def get_line_end_points(points_on_line) -> tuple[np.ndarray, np.ndarray]:
     mean, first_component, std_first_component = first_principal_component(points_on_line)
     return (mean-std_first_component*first_component, mean+std_first_component*first_component)
 
+def save_camera_lidar_calibration_results(image_and_scan_list:list[ImageAndScans], transformation):
+    """Save camera 2d lidar calibration results"""
+    save_location = f'{home}/ros2_ws/src/camera_2d_lidar_calibration/results/'
+    if not os.path.exists(save_location):
+        os.mkdir(save_location)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    folder_name = save_location + f'camera_2d_lidar_calibration_result_{timestamp}/'
+    if not os.path.exists(folder_name):
+        os.mkdir(folder_name)
+    filename = folder_name + f"camera_2d_lidar_calibration_transformation_result_{timestamp}.txt"
+    
+    with open(filename, 'w') as f:
+        f.write("# Camera 2D LiDAR Calibration Results\n\n")
+        f.write(f"# ROS Bags Used: {[image_and_scan.get_bag_name() for image_and_scan in image_and_scan_list]}\n\n")
+        
+        f.write("# Camera-to-LiDAR Transformation Matrix:\n")
+        for row in transformation:
+            f.write(f"{row[0]:.6f}, {row[1]:.6f}, {row[2]:.6f}, {row[3]:.6f}\n")
+
+    for image_and_scan in image_and_scan_list:
+        # img = cv2.cvtColor(image_and_scan.get_undistorted_image(), cv2.COLOR_RGB2BGR)
+        cv2.imwrite(folder_name + image_and_scan.get_bag_name() + ".png",image_and_scan.get_undistorted_image())
+        selected_lidar_points = image_and_scan.get_selected_lidar_points()
+        selected_lidar_points_filename = folder_name + f"selected_2d_lidar_points_{timestamp}.txt"
+        with open(selected_lidar_points_filename, 'w') as f:
+            f.write("('x','y','z','intensity','index')\n")
+            for point in selected_lidar_points:
+                f.write(str(point) + "\n")
+
+    print(f"Camera 2D LiDAR calibration results saved to {filename}")
 
 
 def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list:list[ImageAndScans]):
@@ -690,88 +728,94 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
     Performs Camera and 2D LiDAR calibration by assuming that the edges of wall correspond to edges of the selected points in scan.
     """
 
+    wall_edge_camera_frame_points = []
+    wall_edge_lidar_points = []
 
-    img = undistort_image(image_and_scan_list[0].get_image(), camera_params)
+    for image_and_scan in image_and_scan_list:
 
-    # overlayed_image, vertical_lines, horizontal_lines = get_vertical_and_horizontal_lines(img)
-    vertical_left_lines = image_and_scan_list[0].get_selected_left_lines()
-    vertical_right_lines = image_and_scan_list[0].get_selected_right_lines()
+        img = undistort_image(image_and_scan.get_image(), camera_params)
 
-    vertical_left_line = np.array(get_line_end_points(vertical_left_lines.reshape(-1,2)))
-    vertical_right_line =  np.array(get_line_end_points(vertical_right_lines.reshape(-1,2)))
+        # overlayed_image, vertical_lines, horizontal_lines = get_vertical_and_horizontal_lines(img)
+        vertical_left_lines = image_and_scan.get_selected_left_lines()
+        vertical_right_lines = image_and_scan.get_selected_right_lines()
 
-    print(vertical_left_line, vertical_right_line)
+        vertical_left_line = np.array(get_line_end_points(vertical_left_lines.reshape(-1,2)))
+        vertical_right_line =  np.array(get_line_end_points(vertical_right_lines.reshape(-1,2)))
 
-    # print(vertical_left_lines)
+        corners, corners_3d_world, extrinsic_matrix = get_detected_checkerboard(img, camera_params)
+        corners_camera_frame = np.array([((extrinsic_matrix @ np.vstack([corner_3d.reshape(3,1),[1]]))[:3,:]).reshape(3) for corner_3d in corners_3d_world])
+        vertical_left_line_camera_frame = checkerboard_pixels_to_camera_frame(vertical_left_line, camera_params, extrinsic_matrix)
+        vertical_right_line_camera_frame = checkerboard_pixels_to_camera_frame(vertical_right_line, camera_params, extrinsic_matrix)
+        
+        checkerboard_position = (extrinsic_matrix @ (np.array([0,0,0,1]).reshape(4,1)))[:3,:]
+        checkerboard_x_vec = (extrinsic_matrix @ (np.array([1,0,0,1]).reshape(4,1)))[:3,:] - checkerboard_position
+        checkerboard_y_vec = (extrinsic_matrix @ (np.array([0,1,0,1]).reshape(4,1)))[:3,:] - checkerboard_position
+        
+        line_direction = vertical_left_line_camera_frame[1] - vertical_left_line_camera_frame[0]
+        projected_left_ray = compute_ray_plane_intersection(checkerboard_position, checkerboard_x_vec, vertical_left_line_camera_frame[0], line_direction, np.cross(line_direction.reshape(3), checkerboard_x_vec.reshape(3)))
+        
+        line_direction = vertical_right_line_camera_frame[1] - vertical_right_line_camera_frame[0]
+        projected_right_ray = compute_ray_plane_intersection(checkerboard_position, checkerboard_x_vec, vertical_right_line_camera_frame[0], line_direction, np.cross(line_direction.reshape(3), checkerboard_x_vec.reshape(3)))
+        
+        selected_lidar_points = image_and_scan.get_selected_lidar_points()
+        selected_lidar_points_xy = np.array([[point[0],point[1]] for point in selected_lidar_points])
+        lidar_wall_line = ransac(selected_lidar_points_xy)
 
-    # print(vertical_left_lines)
+        lidar_wall_left = lidar_wall_line[0,:]
+        lidar_wall_right = lidar_wall_line[1,:]
+        # swap lidar points so that they are oriented correctly relative to origin of laser scan
+        angle1 = np.arctan2(lidar_wall_left[1], lidar_wall_left[0])
+        angle2 = np.arctan2(lidar_wall_right[1], lidar_wall_right[0])
+        if angle1 < angle2:
+            lidar_wall_left, lidar_wall_right = lidar_wall_right, lidar_wall_left
+        
 
-    corners, corners_3d_world, extrinsic_matrix = get_detected_checkerboard(img, camera_params)
-
-
-    # print(corners_3d_world)
-    corners_camera_frame = np.array([((extrinsic_matrix @ np.vstack([corner_3d.reshape(3,1),[1]]))[:3,:]).reshape(3) for corner_3d in corners_3d_world])
-    
-    
-    # print(corners_camera_frame)
-
-    vertical_left_line_camera_frame = checkerboard_pixels_to_camera_frame(vertical_left_line, camera_params, extrinsic_matrix)
-    
-    vertical_right_line_camera_frame = checkerboard_pixels_to_camera_frame(vertical_right_line, camera_params, extrinsic_matrix)
-    
-    checkerboard_position = (extrinsic_matrix @ (np.array([0,0,0,1]).reshape(4,1)))[:3,:]
-    checkerboard_x_vec = (extrinsic_matrix @ (np.array([1,0,0,1]).reshape(4,1)))[:3,:] - checkerboard_position
-    checkerboard_y_vec = (extrinsic_matrix @ (np.array([0,1,0,1]).reshape(4,1)))[:3,:] - checkerboard_position
-    
-    line_direction = vertical_left_line_camera_frame[1] - vertical_left_line_camera_frame[0]
-    projected_left_ray = compute_ray_plane_intersection(checkerboard_position, checkerboard_x_vec, vertical_left_line_camera_frame[0], line_direction, np.cross(line_direction.reshape(3), checkerboard_x_vec.reshape(3)))
-    
-    line_direction = vertical_right_line_camera_frame[1] - vertical_right_line_camera_frame[0]
-    projected_right_ray = compute_ray_plane_intersection(checkerboard_position, checkerboard_x_vec, vertical_right_line_camera_frame[0], line_direction, np.cross(line_direction.reshape(3), checkerboard_x_vec.reshape(3)))
-    
-    # print(checkerboard_pixels_to_camera_frame())
-
-
-
-    # print(image_and_scan_list[0].get_selected_lidar_points())
-    selected_lidar_points = image_and_scan_list[0].get_selected_lidar_points()
-    selected_lidar_points_xyz = np.array([[point[0],point[1],point[2]] for point in selected_lidar_points])
-    lidar_wall_line = ransac(selected_lidar_points_xyz[:,:-1])
-
-    # fig = plt.figure()
-    # ax = fig.add_subplot()
-    # ax.scatter(selected_lidar_points_xyz[:,0],selected_lidar_points_xyz[:,1])
-    # ax.plot(lidar_wall_line[:,0], lidar_wall_line[:,1])
-    # plt.show()
-    # cv2.waitKey()
-
-
-    
-    # print(corners_projected.max(axis=0) - corners_projected.min(axis=0))
-
-    # cv2.projectPoints()
-
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-    ax.plot(corners_camera_frame[:,0],corners_camera_frame[:,1], corners_camera_frame[:,2])
-    line = vertical_left_line_camera_frame
-    ax.plot(line[:,0],line[:,1], line[:,2])
-    ax.scatter(projected_left_ray[0],projected_left_ray[1],projected_left_ray[2])
-    line = vertical_right_line_camera_frame
-    ax.plot(line[:,0],line[:,1], line[:,2])
-    ax.scatter(projected_right_ray[0],projected_right_ray[1],projected_right_ray[2])
+        fig = plt.figure()
+        ax = fig.add_subplot()
+        ax.scatter(selected_lidar_points_xy[:,0],selected_lidar_points_xy[:,1], c='blue', label='Selected Points')
+        ax.plot(lidar_wall_line[:,0], lidar_wall_line[:,1], c='green', label='Detected Wall')
+        ax.scatter(lidar_wall_left[0], lidar_wall_left[1], c='red', label='Left Edge')
+        ax.scatter(lidar_wall_right[0], lidar_wall_right[1], c='orange', label='Right Edge')
+        ax.legend()
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_title('Detected 2D LiDAR Wall')
+        plt.show()
+        # cv2.waitKey()
 
 
-    ax.set_box_aspect([ub - lb for lb, ub in (getattr(ax, f'get_{a}lim')() for a in 'xyz')])
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
+        ax.plot(corners_camera_frame[:,0],corners_camera_frame[:,1], corners_camera_frame[:,2])
+        line = vertical_left_line_camera_frame
+        ax.plot(line[:,0],line[:,1], line[:,2])
+        ax.scatter(projected_left_ray[0],projected_left_ray[1],projected_left_ray[2])
+        line = vertical_right_line_camera_frame
+        ax.plot(line[:,0],line[:,1], line[:,2])
+        ax.scatter(projected_right_ray[0],projected_right_ray[1],projected_right_ray[2])
 
 
-    # plt.plot()
-    plt.show()
+        ax.set_box_aspect([ub - lb for lb, ub in (getattr(ax, f'get_{a}lim')() for a in 'xyz')])
 
-    # edges = cv2.Canny(img,100,200)
 
-    
-    # return 0
+        # plt.plot()
+        plt.show()
+        
+        wall_edge_camera_frame_points.append(projected_left_ray)
+        wall_edge_lidar_points.append(lidar_wall_left)
+
+        wall_edge_camera_frame_points.append(projected_right_ray)
+        wall_edge_lidar_points.append(lidar_wall_right)
+
+    wall_edge_camera_frame_points = np.array(wall_edge_camera_frame_points)
+    wall_edge_lidar_points = np.array(wall_edge_lidar_points)
+
+    wall_edge_lidar_points = np.array([[point[0],point[1], 0.0] for point in wall_edge_lidar_points]) # assume Z = 0 for lidar frame
+
+    rigid_transformation, scale = cv2.estimateAffine3D(wall_edge_camera_frame_points, wall_edge_lidar_points, force_rotation=True)
+    transformation = np.vstack([rigid_transformation, np.array([0,0,0,1])])
+
+    save_camera_lidar_calibration_results(image_and_scan_list, transformation)
 
 
     # visualise_image()
