@@ -9,3 +9,6 @@ camera_2d_lidar_calibration:
       p1: 0.001855
       p2: -0.015835
       k: -10.836512
+    # chessboard_square_size: 2 # cm
+    # chessboard_inner_width: 11
+    # chessboard_inner_height: 8
