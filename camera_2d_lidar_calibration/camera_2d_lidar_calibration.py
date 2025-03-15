@@ -176,6 +176,7 @@ class SelectLinesInterface:
         self.ax = self.figure.add_subplot(111)
         self.chart_type = FigureCanvasTkAgg(self.figure, self.root)
         self.navigation_tool_bar = tkagg.NavigationToolbar2Tk(self.chart_type, self.root)
+        self.navigation_tool_bar.zoom()
         self.chart_type.get_tk_widget().pack()
         self.ax.set_title('Detected Vertical Lines')
         self.ax.callbacks.connect('xlim_changed', self.on_xlims_change)
@@ -368,17 +369,19 @@ class SelectPointsInterface:
             self.root.destroy()
 
     def on_xlims_change(self, event_ax):
+        print(event_ax)
         self.xlims = event_ax.get_xlim()
 
     def on_ylims_change(self, event_ax):
         self.ylims = event_ax.get_ylim()
 
     def add_figure(self):
-
+        
         self.figure = plt.Figure(figsize=(7, 5), dpi=100)
         self.ax = self.figure.add_subplot(111)
         self.chart_type = FigureCanvasTkAgg(self.figure, self.root)
         self.navigation_tool_bar = tkagg.NavigationToolbar2Tk(self.chart_type, self.root)
+        self.navigation_tool_bar.zoom()
         self.chart_type.get_tk_widget().pack()
         self.ax.set_title('2D LiDAR Scanned Points')
         self.ax.callbacks.connect('xlim_changed', self.on_xlims_change)
@@ -699,7 +702,7 @@ def save_camera_lidar_calibration_results(image_and_scan_list:list[ImageAndScans
         # img = cv2.cvtColor(image_and_scan.get_undistorted_image(), cv2.COLOR_RGB2BGR)
         cv2.imwrite(folder_name + image_and_scan.get_bag_name() + ".png",image_and_scan.get_undistorted_image())
         selected_lidar_points = image_and_scan.get_selected_lidar_points()
-        selected_lidar_points_filename = folder_name + f"selected_2d_lidar_points_{timestamp}.txt"
+        selected_lidar_points_filename = folder_name +  image_and_scan.get_bag_name() + f"_selected_2d_lidar_points_{timestamp}.txt"
         with open(selected_lidar_points_filename, 'w') as f:
             f.write("('x','y','z','intensity','index')\n")
             for point in selected_lidar_points:
