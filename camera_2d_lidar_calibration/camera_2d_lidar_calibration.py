@@ -16,6 +16,7 @@ from rcl_interfaces.msg import SetParametersResult
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_tkagg as tkagg 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import time
 import laser_geometry
 home = Path.home()
 
@@ -23,9 +24,11 @@ class ImageAndScans:
     def __init__(self, image:np.ndarray, scans:list[LaserScan]):
         assert isinstance(image, np.ndarray), "Error: image must be of the form cv2.self.root"
         assert isinstance(scans , list), "Error: scans must be a list."
-            # assert isinstance(scan, LaserScan), "Error: scans must contain LaserScan objects."
+        for scan in scans:
+            assert isinstance(scan, LaserScan), "Error: scans must contain LaserScan objects."
         self.image = image
         self.scans = scans
+        self.selected_lidar_pc2_points = None
 
     def concatenate_scans_to_points(self, indices=[0]) -> np.ndarray:
         scans = self.get_scans()
@@ -35,11 +38,16 @@ class ImageAndScans:
         scans_numpy = scans_numpy[np.array(indices)]
         concatenated_scans = np.concatenate(scans_numpy)
         return concatenated_scans # x,y,z,intensity,index
+    
+    def set_selected_lidar_points(self, selected_points:np.ndarray):
+        self.selected_lidar_pc2_points = selected_points.copy()
 
     def get_image(self) -> np.ndarray:
         return self.image.copy()
     def get_scans(self) -> list[LaserScan]:
         return self.scans.copy()
+    def get_selected_lidar_points(self):
+        return self.selected_lidar_pc2_points.copy()
     
 
 
@@ -53,34 +61,70 @@ class SelectPointsInterface:
         
         self.root = tk.Tk()
         self.root.title("Camera 2D LiDAR Calibration Menu")
-        self.root.geometry("500x500")
+        self.root.geometry("600x700")
         self.menubar = tk.Menu(self.root)        
         self.app = tk.Frame(self.root)
+
+        self.image_and_scans = image_and_scans
         
         minimise_window_text = tk.Label(self.root,
-                                            text="Please select 2D LiDAR points corresponding to the perpendicular surface \nby using the Zoom feature followed by clicking 'Select Points'.")
+                                            text="Use the slides to choose the starting and ending indices of 2D LiDAR scans respectively. \nSelect 2D LiDAR points corresponding to the perpendicular surface \nby using the Zoom feature followed by clicking 'Select Points'.\nOnce finished, click 'Done'.")
         minimise_window_text.pack(padx=5, pady=5)
+        
+        self.scan_start_slider = tk.Scale(self.root, from_=0, to=len(image_and_scans.get_scans())-1, 
+                                     tickinterval=int(len(image_and_scans.get_scans())/5), orient=tk.HORIZONTAL, 
+                                     command=self.scan_slider_callback)
+        self.scan_start_slider.set(0)
+        self.scan_start_slider.pack(ipadx=100)
 
+        self.scan_end_slider = tk.Scale(self.root, from_=0, to=len(image_and_scans.get_scans())-1, 
+                                     tickinterval=int(len(image_and_scans.get_scans())/5), orient=tk.HORIZONTAL, 
+                                     command=self.scan_slider_callback)
+        self.scan_end_slider.set(len(image_and_scans.get_scans())-1)
+        self.scan_end_slider.pack(ipadx=100)
+        
+
+        # scan_start_slider.bind("<ButtonRelease-1>", lambda event : print("test"))
         
         self.button_frame = ttk.Frame(self.root)    
         self.button_frame.pack(side="top", pady=(20,0))
 
         self.select_points_button = ttk.Button(self.button_frame, text="Select Points")
-        self.select_points_button.pack(side="left", padx=25, ipadx=20, ipady=20)
+        self.select_points_button.pack(side="left", padx=25,pady=(0,10), ipadx=20, ipady=20)
         self.select_points_button.bind("<ButtonPress>", self.select_points)
 
-        # self.minimise_button= ttk.Button(self.button_frame, text="Minimise X-coordinates")
-        # self.minimise_button.pack(side="left", padx=25, ipadx=20, ipady=20)
-        # self.minimise_button.bind("<ButtonPress>", lambda event : self.show_minimise_window(event))
+
+        self.done_button = ttk.Button(self.button_frame, text="Done")
+        self.done_button.pack(side="left", padx=25,pady=(0,10), ipadx=20, ipady=20)
+        self.done_button.bind("<ButtonPress>", self.done_callback)
+
         self.ax_lidar_points = None
         self.ax_selected_lidar_points = None
         self.scan_indices = np.arange(0,len(image_and_scans.get_scans()))
-        self.all_2d_lidar_points = image_and_scans.concatenate_scans_to_points(self.scan_indices)
+        self.selected_points_indices = None
+
         self.add_figure()
 
+        self.reset_and_add_2d_lidar_points()
+
+    
+    def reset_and_add_2d_lidar_points(self):
+        self.clear_2d_lidar_points()
+        self.clear_selected_2d_lidar_points()
+        self.all_2d_lidar_points = self.image_and_scans.concatenate_scans_to_points(self.scan_indices)
         self.add_2d_lidar_points(self.all_2d_lidar_points.copy())
+        self.figure.canvas.draw()
+        self.figure.canvas.flush_events()
 
+    def scan_slider_callback(self,event):
+        if self.scan_end_slider.get() < self.scan_start_slider.get():
+            self.scan_end_slider.set(self.scan_start_slider.get())
 
+        self.scan_indices = np.arange(self.scan_start_slider.get(),self.scan_end_slider.get()+1)
+        
+        self.reset_and_add_2d_lidar_points()
+
+    
 
     def select_points(self, event):
         self.clear_selected_2d_lidar_points()
@@ -89,23 +133,32 @@ class SelectPointsInterface:
 
         selected_x_indices = np.logical_and(points_xy[:,0]>= self.xlims[0], points_xy[:,0] <= self.xlims[1])
         selected_y_indices = np.logical_and(points_xy[:,1] >= self.ylims[0], points_xy[:,1] <= self.ylims[1])
-        points_xy_selected = points_xy[np.logical_and(selected_x_indices, selected_y_indices)]
+
+        self.selected_points_indices = list(np.logical_and(selected_x_indices, selected_y_indices))
+        points_xy_selected = points_xy[np.array(self.selected_points_indices)]
+
 
         self.ax_selected_lidar_points = self.ax.scatter(points_xy_selected[:,0], points_xy_selected[:,1], c='red')
 
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
-        
-        
+    
+    def done_callback(self, event):
+        if self.selected_points_indices:
+            pc2_points = self.image_and_scans.concatenate_scans_to_points(self.scan_indices)
+            selected_pc2_points = pc2_points[self.selected_points_indices]
+            self.image_and_scans.set_selected_lidar_points(selected_pc2_points)
+            # print(len(self.image_and_scans.get_selected_lidar_points()))
+            self.root.destroy()
 
     def on_xlims_change(self, event_ax):
         self.xlims = event_ax.get_xlim()
-        print('updated xlims:', self.xlims)
+        # print('updated xlims:', self.xlims)
 
     def on_ylims_change(self, event_ax):
         self.ylims = event_ax.get_ylim()
         # self.clear_2d_lidar_points()
-        print('updated ylims:', self.ylims)
+        # print('updated ylims:', self.ylims)
 
 
     def add_figure(self):
@@ -126,18 +179,22 @@ class SelectPointsInterface:
     def clear_selected_2d_lidar_points(self):
         if self.ax_selected_lidar_points:
             self.ax_selected_lidar_points.remove()
+        self.ax_selected_lidar_points = None
+        self.selected_points_indices = None
 
     def clear_2d_lidar_points(self):
         if self.ax_lidar_points:
             self.ax_lidar_points.remove()
+        self.ax_lidar_points = None
     
     def add_2d_lidar_points(self, points:np.ndarray):
         assert isinstance(points, np.ndarray), "Error: points must be a numpy array."
         points_xy = np.array([[point[0], point[1]] for point in points])
         self.ax_lidar_points = self.ax.scatter(points_xy[:,0], points_xy[:,1], c='blue')
 
-    def show(self):
+    def run(self):
         self.app.mainloop()
+        return self.image_and_scans
     
 class CameraParameters:
     def __init__(self, camera_intrinsic_matrix, k1,k2,p1,p2,k3):
@@ -228,11 +285,14 @@ def main(args=None):
         
         camera_params = bag_to_image_and_scans.get_camera_params()
         image_and_scan_list = bag_to_image_and_scans.get_image_and_laser_scans()
+        
+        for image_and_scan in image_and_scan_list:
+            select_points_interface = SelectPointsInterface(image_and_scan)
+            image_and_scan = select_points_interface.run()
+            
+            print(len(image_and_scan.get_selected_lidar_points()))
 
-        # print(image_and_scan_list[0].concatenate_scans_to_points())
 
-        select_points_interface = SelectPointsInterface(image_and_scan_list[0])
-        select_points_interface.show()
 
         # rclpy.spin(bag_to_image_and_scans)
     except (KeyboardInterrupt, ExternalShutdownException):
