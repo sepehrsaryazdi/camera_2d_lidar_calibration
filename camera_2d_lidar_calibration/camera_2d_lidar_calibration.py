@@ -18,6 +18,7 @@ import matplotlib.backends.backend_tkagg as tkagg
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from scipy.spatial.distance import pdist, squareform
 import time
+from mpl_toolkits.mplot3d import Axes3D
 import laser_geometry
 home = Path.home()
 
@@ -406,7 +407,7 @@ def checkerboard_pixels_to_camera_frame(image_points, camera_params:CameraParame
         ray_trace_matrix = np.hstack([ray, checkerboard_x_vec, checkerboard_y_vec])
         coeffs = np.linalg.inv(ray_trace_matrix) @ checkerboard_position
         projected_ray = coeffs[0] * ray
-        projected_rays.append(projected_ray)
+        projected_rays.append(projected_ray.reshape(3))
     return np.array(projected_rays)
 
 def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list:list[ImageAndScans]):
@@ -432,13 +433,19 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
 
     corners, corners_3d_world, extrinsic_matrix = get_detected_checkerboard(img, camera_params)
     # print(corners_3d_world)
-    corners_camera_frame = np.array([extrinsic_matrix @ np.vstack([corner_3d.reshape(3,1),[1]]) for corner_3d in corners_3d_world])
+    corners_camera_frame = np.array([((extrinsic_matrix @ np.vstack([corner_3d.reshape(3,1),[1]]))[:3,:]).reshape(3) for corner_3d in corners_3d_world])
     
     
     print(corners_camera_frame)
 
+    vertical_lines_camera_frame = []
+    for vertical_line in vertical_lines:
+        vertical_lines_camera_frame.append(checkerboard_pixels_to_camera_frame(vertical_line, camera_params, extrinsic_matrix))
+    vertical_lines_camera_frame = np.array(vertical_lines_camera_frame)
+    
 
-    print(checkerboard_pixels_to_camera_frame(np.array([[10, 20], [30,40]], dtype=np.float32), camera_params, extrinsic_matrix))
+
+    # print(checkerboard_pixels_to_camera_frame())
 
 
 
@@ -453,9 +460,16 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
     # print(corners_projected.max(axis=0) - corners_projected.min(axis=0))
 
     # cv2.projectPoints()
-    plt.figure()
-    plt.plot(corners_3d_world[:,0],corners_3d_world[:,1])
-    # plt.show()
+
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    ax.plot(corners_camera_frame[:,0],corners_camera_frame[:,1], corners_camera_frame[:,2])
+    for line in vertical_lines_camera_frame:
+        ax.plot(line[:,0],line[:,1], line[:,2])
+    ax.set_box_aspect([ub - lb for lb, ub in (getattr(ax, f'get_{a}lim')() for a in 'xyz')])
+
+    # plt.plot()
+    plt.show()
 
     # edges = cv2.Canny(img,100,200)
 
