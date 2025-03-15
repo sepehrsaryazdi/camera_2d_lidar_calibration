@@ -609,12 +609,38 @@ def compute_ray_plane_intersection(ray_origin, ray, point_on_plane, basis_v1, ba
     origin_difference = point_on_plane - ray_origin
     ray_trace_matrix = np.hstack([ray, basis_v1, basis_v2])
     coeffs = np.linalg.inv(ray_trace_matrix) @ origin_difference
-    projected_ray = coeffs[0] * ray
+    projected_ray = coeffs[0] * ray + ray_origin
     return projected_ray.reshape(3)
 
-def get_line_direction_vector(vertical_lines):
+def get_line_end_points(vertical_lines) -> tuple[np.ndarray, np.ndarray]:
+    vertical_lines = vertical_lines.reshape(-1,2)
+    # mean = np.mean(vertical_lines,axis=1)
+    # # # print(vertical_lines)
+    # # # print(mean)
+ 
+    # # U, s, Vt = np.linalg.svd(vertical_lines - mean, full_matrices=False)
+    # # V = Vt.T
+    # # S = np.diag(s)
+    # # # Mhat = np.dot(U, np.dot(S, V.T))
+    
+    # # # print(U[:, :1])
+    # # # print(mean.T)
+    # # # print((U[:, :1] + mean).T)
+    # # first_point_on_line = V[:1,:].T  - S[0,0]*mean
+    # # second_point_on_line = V[:1,:].T + S[0,0]*mean
+    # # return (first_point_on_line.reshape(2), second_point_on_line.reshape(2))
+
+    # # if we use only the first 20 PCs the reconstruction is less accurate
+    # # Mhat2 = np.dot(U[:, :1], np.dot(S[:1, :1], V[:,:1].T))
+    # m, b = np.polyfit(vertical_lines[:,1],vertical_lines[:,0], 1)
+    
+    # mean_y = mean[0]
+    # first_point = np.array([1/m * mean_y - b/m, mean_y])
+    # second_point = np.array([1.1/m * mean_y - b/m, 1.1*mean_y])
+    # return (first_point, second_point)
+    return (vertical_lines[0], vertical_lines[1])
     # np.linalg.lstsq()
-    pass
+    
 
 
 def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list:list[ImageAndScans]):
@@ -626,23 +652,41 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
     img = undistort_image(image_and_scan_list[0].get_image(), camera_params)
 
     # overlayed_image, vertical_lines, horizontal_lines = get_vertical_and_horizontal_lines(img)
-    vertical_lines = image_and_scan_list[0].get_selected_left_lines()
-    print(vertical_lines)
+    vertical_left_lines = image_and_scan_list[0].get_selected_left_lines()
+    vertical_right_lines = image_and_scan_list[0].get_selected_right_lines()
+
+    vertical_left_line = np.array(get_line_end_points(vertical_left_lines))
+    vertical_right_line =  np.array(get_line_end_points(vertical_right_lines))
+
+    print(vertical_left_line, vertical_right_line)
+
+    # print(vertical_left_lines)
+
+    # print(vertical_left_lines)
 
     corners, corners_3d_world, extrinsic_matrix = get_detected_checkerboard(img, camera_params)
+
+
     # print(corners_3d_world)
     corners_camera_frame = np.array([((extrinsic_matrix @ np.vstack([corner_3d.reshape(3,1),[1]]))[:3,:]).reshape(3) for corner_3d in corners_3d_world])
     
     
-    print(corners_camera_frame)
+    # print(corners_camera_frame)
 
-    vertical_lines_camera_frame = []
-    for vertical_line in vertical_lines:
-        vertical_lines_camera_frame.append(checkerboard_pixels_to_camera_frame(vertical_line, camera_params, extrinsic_matrix))
-    vertical_lines_camera_frame = np.array(vertical_lines_camera_frame)
+    vertical_left_line_camera_frame = checkerboard_pixels_to_camera_frame(vertical_left_line, camera_params, extrinsic_matrix)
     
-
-
+    vertical_right_line_camera_frame = checkerboard_pixels_to_camera_frame(vertical_right_line, camera_params, extrinsic_matrix)
+    
+    checkerboard_position = (extrinsic_matrix @ (np.array([0,0,0,1]).reshape(4,1)))[:3,:]
+    checkerboard_x_vec = (extrinsic_matrix @ (np.array([1,0,0,1]).reshape(4,1)))[:3,:] - checkerboard_position
+    checkerboard_y_vec = (extrinsic_matrix @ (np.array([0,1,0,1]).reshape(4,1)))[:3,:] - checkerboard_position
+    
+    line_direction = vertical_left_line_camera_frame[1] - vertical_left_line_camera_frame[0]
+    projected_left_ray = compute_ray_plane_intersection(checkerboard_position, checkerboard_x_vec, vertical_left_line_camera_frame[0], line_direction, np.cross(line_direction.reshape(3), checkerboard_x_vec.reshape(3)))
+    
+    line_direction = vertical_right_line_camera_frame[1] - vertical_right_line_camera_frame[0]
+    projected_right_ray = compute_ray_plane_intersection(checkerboard_position, checkerboard_x_vec, vertical_right_line_camera_frame[0], line_direction, np.cross(line_direction.reshape(3), checkerboard_x_vec.reshape(3)))
+    
     # print(checkerboard_pixels_to_camera_frame())
 
 
@@ -662,9 +706,16 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
     ax.plot(corners_camera_frame[:,0],corners_camera_frame[:,1], corners_camera_frame[:,2])
-    for line in vertical_lines_camera_frame:
-        ax.plot(line[:,0],line[:,1], line[:,2])
+    line = vertical_left_line_camera_frame
+    ax.plot(line[:,0],line[:,1], line[:,2])
+    ax.scatter(projected_left_ray[0],projected_left_ray[1],projected_left_ray[2])
+    line = vertical_right_line_camera_frame
+    ax.plot(line[:,0],line[:,1], line[:,2])
+    ax.scatter(projected_right_ray[0],projected_right_ray[1],projected_right_ray[2])
+
+
     ax.set_box_aspect([ub - lb for lb, ub in (getattr(ax, f'get_{a}lim')() for a in 'xyz')])
+
 
     # plt.plot()
     plt.show()
