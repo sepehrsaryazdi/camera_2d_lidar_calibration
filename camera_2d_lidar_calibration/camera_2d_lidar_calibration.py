@@ -2,17 +2,41 @@ import rclpy
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 import rosbag2_py
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, LaserScan
 import os
 from rclpy.serialization import deserialize_message
 import cv2
 import cv_bridge
 from pathlib import Path
+import numpy as np
 from rcl_interfaces.msg import SetParametersResult
-
+import laser_geometry
 home = Path.home()
 
-class BagToImage(Node):
+class ImageAndScans:
+    def __init__(self, image:np.ndarray, scans:list[LaserScan]):
+        assert isinstance(image, np.ndarray), "Error: image must be of the form cv2.Mat."
+        assert isinstance(scans, list), "Error: scans must be a list."
+        for scan in scans:
+            assert isinstance(scan, LaserScan), "Error: scans must contain LaserScan objects."
+        self.image = image
+        self.scans = scans
+    def get_image(self):
+        return self.image.copy()
+    def get_scans(self):
+        return self.scans.copy()
+    
+class CameraParameters:
+    def __init__(self, camera_intrinsic_matrix, k1,k2,p1,p2,k3):
+        assert isinstance(camera_intrinsic_matrix, np.ndarray), "Error: camera_intrinsic_matrix must be a matrix."
+        assert camera_intrinsic_matrix.shape == (3,3), "Error: camera_intrinsic_matrix must be a 3x3 matrix."
+        self.camera_intrinsic_matrix = camera_intrinsic_matrix
+        self.distortion_coeffs = [k1,k2,p1,p2,k3]
+        
+    def get_camera_parameters(self):
+        return (self.camera_intrinsic_matrix.copy(), self.distortion_coeffs.copy())
+
+class BagToImageAndScans(Node):
 
     def __init__(self):
         super().__init__('camera_2d_lidar_calibration')
@@ -33,14 +57,15 @@ class BagToImage(Node):
         p2 = self.get_parameter("distortion_coefficients.p2").value
         k3 = self.get_parameter("distortion_coefficients.k3").value
 
+        self.camera_params = CameraParameters(np.array(camera_intrinsic_matrix).reshape(3,3), k1,k2,p1,p2,k3)
 
+        self.image_and_scan_list = []
 
-        self.publisher = self.create_publisher(Image, '/image', 10) # publisher for real-time monitoring if necessary
+        self.image_publisher = self.create_publisher(Image, '/image', 10) # publisher for real-time image monitoring if necessary
+        self.lidar_publisher = self.create_publisher(LaserScan, '/scan', 10) # publisher for real-time lidar monitoring if necessary
 
         bags_location = f'{home}/ros2_ws/src/camera_2d_lidar_calibration/bags/'
-        images_location = f'{home}/ros2_ws/src/camera_2d_lidar_calibration/images/'
-        if not os.path.exists(images_location):
-            os.mkdir(images_location)
+        
         for bag_file_name in os.listdir(bags_location):
             self.get_logger().info('Processing ' + bag_file_name + 'bag file.')
             self.reader = rosbag2_py.SequentialReader()
@@ -51,31 +76,39 @@ class BagToImage(Node):
             converter_options = rosbag2_py.ConverterOptions('', '')
             self.reader.open(storage_options, converter_options)
 
-            save_image_location = images_location + bag_file_name + '/'
-            if not os.path.exists(save_image_location):
-                os.mkdir(save_image_location)
-            self.extract_image(save_image_location)
-        
-    def extract_image(self, save_image_location):
-        image_counter = 0
+            self.image_and_scan_list.append(self.extract_image_and_scans())
+
+    def extract_image_and_scans(self) -> ImageAndScans:
+        selected_image = False
+        image = None
+        scans = []
         while self.reader.has_next():
             msg = self.reader.read_next()
-            if msg[0] != '/camera/image_raw': # ignore other ROS topics in this bag
-                continue
-            decoded_data = deserialize_message(msg[1], Image) # get serialized version of message and decode it
-            cvbridge = cv_bridge.CvBridge()
-            cv_image = cvbridge.imgmsg_to_cv2(decoded_data, desired_encoding='passthrough') # change ROS2 Image to cv2 image
-            cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR) # changes image encoding from RGB to BGR for cv2.imwrite to work correctly
-            file_location = save_image_location + str(image_counter) + ".png"
-            cv2.imwrite(file_location, cv_image)
-            self.publisher.publish(msg[1])
-            self.get_logger().info(f'Saved {file_location} and published serialized data to /image')
-            image_counter+=1
+            if msg[0] == '/camera/image_raw' and selected_image == False: # ignore other ROS topics in this bag
+                decoded_data = deserialize_message(msg[1], Image) # get serialized version of message and decode it
+                cvbridge = cv_bridge.CvBridge()
+                cv_image = cvbridge.imgmsg_to_cv2(decoded_data, desired_encoding='passthrough') # change ROS2 Image to cv2 image
+                cv_image = cv2.cvtColor(cv_image, cv2.COLOR_RGB2BGR) # changes image encoding from RGB to BGR for cv2.imwrite to work correctly
+                # cv2.imwrite(file_location, cv_image)
+                image = cv_image
+                selected_image = True
+                self.image_publisher.publish(msg[1])
+                self.get_logger().info(f'Published serialized data to /image')
+            
+            if msg[0] == '/scan':
+                decoded_data = deserialize_message(msg[1], LaserScan) # get serialized version of message and decode it
+                self.lidar_publisher.publish(msg[1])
+                scans.append(decoded_data)      
+        return ImageAndScans(image, scans)
+
 
 def main(args=None):
     try:
         rclpy.init(args=args)
-        sbr = BagToImage()
+        sbr = BagToImageAndScans()
+        
+
+
         rclpy.spin(sbr)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
