@@ -773,7 +773,7 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
         fig = plt.figure()
         ax = fig.add_subplot()
         ax.scatter(selected_lidar_points_xy[:,0],selected_lidar_points_xy[:,1], c='blue', label='Selected Points')
-        ax.plot(lidar_wall_line[:,0], lidar_wall_line[:,1], c='black', label='Detected Wall')
+        ax.plot(lidar_wall_line[:,0], lidar_wall_line[:,1], c='cyan', label='Detected Wall')
         ax.scatter(lidar_wall_left[0], lidar_wall_left[1], c='purple', label='Left Edge')
         ax.scatter(lidar_wall_right[0], lidar_wall_right[1], c='orange', label='Right Edge')
         ax.legend()
@@ -786,7 +786,9 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
 
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
-        ax.plot(corners_camera_frame[:,0],corners_camera_frame[:,1], corners_camera_frame[:,2])
+        ax.view_init(elev=-90, azim=-90)
+        ax.scatter(corners_camera_frame[:,0],corners_camera_frame[:,1], corners_camera_frame[:,2], c='black', label='Detected Chessboard Corners')
+        ax.plot(corners_camera_frame[:,0],corners_camera_frame[:,1], corners_camera_frame[:,2], c='black', label='Chessboard Corner Ordering')
         line = vertical_left_line_camera_frame
         ax.plot(line[:,0],line[:,1], line[:,2], c='red', label='Wall Left Edge')
         ax.scatter(projected_left_ray[0],projected_left_ray[1],projected_left_ray[2], c='purple', label='Projected Left Point')
@@ -795,7 +797,7 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
         ax.scatter(projected_right_ray[0],projected_right_ray[1],projected_right_ray[2], c='orange',label='Projected Right Point')
 
         wall_line = np.vstack([projected_left_ray, projected_right_ray])
-        ax.plot(wall_line[:,0], wall_line[:,1], wall_line[:,2], c='black', label='Detected Wall')
+        ax.plot(wall_line[:,0], wall_line[:,1], wall_line[:,2], c='cyan', label='Detected Wall')
 
         ax.set_box_aspect([ub - lb for lb, ub in (getattr(ax, f'get_{a}lim')() for a in 'xyz')])
         ax.set_xlabel('x')
