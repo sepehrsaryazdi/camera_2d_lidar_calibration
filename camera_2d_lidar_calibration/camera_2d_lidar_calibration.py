@@ -490,11 +490,6 @@ class BagToImageAndScans(Node):
     def get_image_and_laser_scans(self) -> list[ImageAndScans]:
         return self.image_and_scan_list.copy()
 
-def visualise_image(image:np.ndarray):
-    fig = plt.figure()
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    plt.imshow(image)
-    plt.show()
 
 def get_vertical_and_horizontal_lines(img:np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     dst = cv2.Canny(img, 50, 200, None, 3)
@@ -525,9 +520,12 @@ def get_detected_checkerboard(img:np.ndarray, camera_params:CameraParameters, ch
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img_size = (gray.shape[1], gray.shape[0])
     
-    # Prepare object points, such as (0,0,0), (1,0,0), (2,0,0) ....,(10,7,0)
+    # Prepare object points, such as (0,0,0), (1,0,0), (2,0,0) ....,(10,7,0), plus any offsets
+    
+    centre_offset = - np.min(chessboard_size)*square_size/2 # offset points so that origin is set to middle point instead of bottom
+
     objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
-    objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2) * square_size
+    objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2) * square_size + centre_offset
 
     # Arrays to store object points and image points from all the images
     # objp = []  # 3D point in real world space
@@ -550,26 +548,13 @@ def get_detected_checkerboard(img:np.ndarray, camera_params:CameraParameters, ch
         # Full extrinsic matrix [R | t]
         extrinsic_matrix = np.vstack([np.hstack((R, tvec)),[0,0,0,1]])
 
-        # print(corners2)
         # Save object and image points
         
         # Draw and display corners
         img_with_corners = img.copy()
         cv2.drawChessboardCorners(img_with_corners, chessboard_size, corners2, ret)
         
-        cv2.imshow("Image with Corners",img_with_corners)
-
-        # cv2.waitKey()
-
-        # Create detection results directory
-        # detection_dir = 'detection_results'
-        # if not os.path.exists(detection_dir):
-        #     os.makedirs(detection_dir)
-            
-        # # # Save image with drawn corners
-        # # base_name = os.path.basename(fname)
-        # # output_path = os.path.join(detection_dir, f"detected_{base_name}")
-        # # cv2.imwrite(output_path, img_with_corners)
+        # cv2.imshow("Image with Corners",img_with_corners)
         return corners2.reshape(len(corners2),-1), objp, extrinsic_matrix
     else:
         return corners2, objp, extrinsic_matrix
@@ -824,9 +809,6 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
 
     save_camera_lidar_calibration_results(image_and_scan_list, transformation)
 
-
-    # visualise_image()
-    
 
     pass
 
