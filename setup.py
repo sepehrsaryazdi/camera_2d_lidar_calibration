@@ -17,7 +17,7 @@ setup(
         # Install config files
         (os.path.join("share", package_name, "config"), glob("config/*.yaml")),
     ],
-    install_requires=['setuptools', 'opencv-python' ,'os' ,'tk'],
+    install_requires=['setuptools', 'opencv-python' ,'os' ,'tk', 'matplotlib'],
     zip_safe=True,
     maintainer='sepehr',
     maintainer_email='sepehr.saryazdi@gmail.com',
