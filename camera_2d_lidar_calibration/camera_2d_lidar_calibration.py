@@ -584,11 +584,8 @@ def checkerboard_pixels_to_camera_frame(image_points, camera_params:CameraParame
     
     projected_rays = []
     for ray in camera_rays:
-        ray = ray.reshape(3,1)
-        ray_trace_matrix = np.hstack([ray, checkerboard_x_vec, checkerboard_y_vec])
-        coeffs = np.linalg.inv(ray_trace_matrix) @ checkerboard_position
-        projected_ray = coeffs[0] * ray
-        projected_rays.append(projected_ray.reshape(3))
+        projected_ray = compute_ray_plane_intersection(np.zeros(3), ray, checkerboard_position, checkerboard_x_vec, checkerboard_y_vec)
+        projected_rays.append(projected_ray)
     return np.array(projected_rays)
 
 
@@ -602,6 +599,22 @@ def undistort_image(img:np.ndarray, camera_params:CameraParameters):
     )
     return undistorted_image
     # cv2.imshow("undistorted", undistorted_image)
+
+def compute_ray_plane_intersection(ray_origin, ray, point_on_plane, basis_v1, basis_v2):
+    ray_origin = ray_origin.reshape(3,1)
+    ray = ray.reshape(3,1)
+    point_on_plane = point_on_plane.reshape(3,1)
+    basis_v1 = basis_v1.reshape(3,1)
+    basis_v2 = basis_v2.reshape(3,1)
+    origin_difference = point_on_plane - ray_origin
+    ray_trace_matrix = np.hstack([ray, basis_v1, basis_v2])
+    coeffs = np.linalg.inv(ray_trace_matrix) @ origin_difference
+    projected_ray = coeffs[0] * ray
+    return projected_ray.reshape(3)
+
+def get_line_direction_vector(vertical_lines):
+    # np.linalg.lstsq()
+    pass
 
 
 def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list:list[ImageAndScans]):
