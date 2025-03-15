@@ -19,9 +19,19 @@ class BagToImage(Node):
         
         # Declare parameters with default values
         self.declare_parameter("camera_intrinsic_matrix", [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0])
+        self.declare_parameter("distortion_coefficients.k1", 0.0)
+        self.declare_parameter("distortion_coefficients.k2", 0.0)
+        self.declare_parameter("distortion_coefficients.p1", 0.0)
+        self.declare_parameter("distortion_coefficients.p2", 0.0)
+        self.declare_parameter("distortion_coefficients.k3", 0.0)
 
         # Retrieve parameters
         camera_intrinsic_matrix = self.get_parameter("camera_intrinsic_matrix").value
+        k1 = self.get_parameter("distortion_coefficients.k1").value
+        k2 = self.get_parameter("distortion_coefficients.k2").value
+        p1 = self.get_parameter("distortion_coefficients.p1").value
+        p2 = self.get_parameter("distortion_coefficients.p2").value
+        k3 = self.get_parameter("distortion_coefficients.k3").value
 
 
 
