@@ -139,7 +139,7 @@ class SelectLinesInterface:
         self.image_and_scans = image_and_scans.copy()
         
         window_text = tk.Label(self.root,
-                            text="Select lines corresponding to the left and right edges of the perpendicular surface \nby using the Zoom feature followed by clicking 'Select Left Edge' and 'Select Right Edge'.\nOnce finished, click 'Done'.")
+                            text=f"ROS Bag: {image_and_scans.get_bag_name()}\nSelect lines corresponding to the left and right edges of the perpendicular surface \nby using the Zoom feature followed by clicking 'Select Left Edge' and 'Select Right Edge'.\nOnce finished, click 'Done'.")
         window_text.pack(padx=5, pady=5)
 
                 
@@ -288,7 +288,7 @@ class SelectPointsInterface:
         self.image_and_scans = image_and_scans.copy()
         
         window_text = tk.Label(self.root,
-                                            text="Use the slides to choose the starting and ending indices of 2D LiDAR scans respectively. \nSelect 2D LiDAR points corresponding to the perpendicular surface \nby using the Zoom feature followed by clicking 'Select Points'.\nOnce finished, click 'Done'.")
+                                            text=f"ROS Bag: {image_and_scans.get_bag_name()}\nUse the slides to choose the starting and ending indices of 2D LiDAR scans respectively. \nSelect 2D LiDAR points corresponding to the perpendicular surface \nby using the Zoom feature followed by clicking 'Select Points'.\nOnce finished, click 'Done'.")
         window_text.pack(padx=5, pady=5)
         
         self.scan_start_slider = tk.Scale(self.root, from_=0, to=len(image_and_scans.get_scans())-1, 
@@ -516,7 +516,7 @@ def get_vertical_and_horizontal_lines(img:np.ndarray) -> tuple[np.ndarray, np.nd
                 horizontal_lines.append([(l[0], l[1]), (l[2], l[3])])
     return (cdstP, np.array(vertical_lines), np.array(horizontal_lines))
 
-def get_detected_checkerboard(img:np.ndarray, camera_params:CameraParameters, chessboard_size=(11,8), square_size=2.0):
+def get_detected_chessboard(img:np.ndarray, camera_params:CameraParameters, chessboard_size=(11,8), square_size=2.0):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img_size = (gray.shape[1], gray.shape[0])
     
@@ -559,9 +559,9 @@ def get_detected_checkerboard(img:np.ndarray, camera_params:CameraParameters, ch
     else:
         return corners2, objp, extrinsic_matrix
 
-def checkerboard_pixels_to_camera_frame(image_points, camera_params:CameraParameters, extrinsic_matrix):
+def chessboard_pixels_to_camera_frame(image_points, camera_params:CameraParameters, extrinsic_matrix):
     """
-    Assumes the n checkerboard image points are given in units of pixels, with shape n x 2.
+    Assumes the n chessboard image points are given in units of pixels, with shape n x 2.
     Example: 
     image_points = np.array([[10, 20], [30,40]], dtype=np.float32)
     """
@@ -571,13 +571,13 @@ def checkerboard_pixels_to_camera_frame(image_points, camera_params:CameraParame
     image_points_h = np.hstack((image_points, np.ones((image_points.shape[0], 1))))  # (u, v, 1)
     camera_rays = (K_inv @ image_points_h.T).T  # Normalized direction vectors
 
-    checkerboard_position = (extrinsic_matrix @ (np.array([0,0,0,1]).reshape(4,1)))[:3,:]
-    checkerboard_x_vec = (extrinsic_matrix @ (np.array([1,0,0,1]).reshape(4,1)))[:3,:] - checkerboard_position
-    checkerboard_y_vec = (extrinsic_matrix @ (np.array([0,1,0,1]).reshape(4,1)))[:3,:] - checkerboard_position
+    chessboard_position = (extrinsic_matrix @ (np.array([0,0,0,1]).reshape(4,1)))[:3,:]
+    chessboard_x_vec = (extrinsic_matrix @ (np.array([1,0,0,1]).reshape(4,1)))[:3,:] - chessboard_position
+    chessboard_y_vec = (extrinsic_matrix @ (np.array([0,1,0,1]).reshape(4,1)))[:3,:] - chessboard_position
     
     projected_rays = []
     for ray in camera_rays:
-        projected_ray = compute_ray_plane_intersection(np.zeros(3), ray, checkerboard_position, checkerboard_x_vec, checkerboard_y_vec)
+        projected_ray = compute_ray_plane_intersection(np.zeros(3), ray, chessboard_position, chessboard_x_vec, chessboard_y_vec)
         projected_rays.append(projected_ray)
     return np.array(projected_rays)
 
@@ -727,20 +727,20 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
         vertical_left_line = np.array(get_line_end_points(vertical_left_lines.reshape(-1,2)))
         vertical_right_line =  np.array(get_line_end_points(vertical_right_lines.reshape(-1,2)))
 
-        corners, corners_3d_world, extrinsic_matrix = get_detected_checkerboard(img, camera_params)
+        corners, corners_3d_world, extrinsic_matrix = get_detected_chessboard(img, camera_params)
         corners_camera_frame = np.array([((extrinsic_matrix @ np.vstack([corner_3d.reshape(3,1),[1]]))[:3,:]).reshape(3) for corner_3d in corners_3d_world])
-        vertical_left_line_camera_frame = checkerboard_pixels_to_camera_frame(vertical_left_line, camera_params, extrinsic_matrix)
-        vertical_right_line_camera_frame = checkerboard_pixels_to_camera_frame(vertical_right_line, camera_params, extrinsic_matrix)
+        vertical_left_line_camera_frame = chessboard_pixels_to_camera_frame(vertical_left_line, camera_params, extrinsic_matrix)
+        vertical_right_line_camera_frame = chessboard_pixels_to_camera_frame(vertical_right_line, camera_params, extrinsic_matrix)
         
-        checkerboard_position = (extrinsic_matrix @ (np.array([0,0,0,1]).reshape(4,1)))[:3,:]
-        checkerboard_x_vec = (extrinsic_matrix @ (np.array([1,0,0,1]).reshape(4,1)))[:3,:] - checkerboard_position
-        checkerboard_y_vec = (extrinsic_matrix @ (np.array([0,1,0,1]).reshape(4,1)))[:3,:] - checkerboard_position
+        chessboard_position = (extrinsic_matrix @ (np.array([0,0,0,1]).reshape(4,1)))[:3,:]
+        chessboard_x_vec = (extrinsic_matrix @ (np.array([1,0,0,1]).reshape(4,1)))[:3,:] - chessboard_position
+        chessboard_y_vec = (extrinsic_matrix @ (np.array([0,1,0,1]).reshape(4,1)))[:3,:] - chessboard_position
         
         line_direction = vertical_left_line_camera_frame[1] - vertical_left_line_camera_frame[0]
-        projected_left_ray = compute_ray_plane_intersection(checkerboard_position, checkerboard_x_vec, vertical_left_line_camera_frame[0], line_direction, np.cross(line_direction.reshape(3), checkerboard_x_vec.reshape(3)))
+        projected_left_ray = compute_ray_plane_intersection(chessboard_position, chessboard_x_vec, vertical_left_line_camera_frame[0], line_direction, np.cross(line_direction.reshape(3), chessboard_x_vec.reshape(3)))
         
         line_direction = vertical_right_line_camera_frame[1] - vertical_right_line_camera_frame[0]
-        projected_right_ray = compute_ray_plane_intersection(checkerboard_position, checkerboard_x_vec, vertical_right_line_camera_frame[0], line_direction, np.cross(line_direction.reshape(3), checkerboard_x_vec.reshape(3)))
+        projected_right_ray = compute_ray_plane_intersection(chessboard_position, chessboard_x_vec, vertical_right_line_camera_frame[0], line_direction, np.cross(line_direction.reshape(3), chessboard_x_vec.reshape(3)))
         
         selected_lidar_points = image_and_scan.get_selected_lidar_points()
         selected_lidar_points_xy = np.array([[point[0],point[1]] for point in selected_lidar_points])
@@ -756,6 +756,8 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
         
 
         fig = plt.figure()
+        man = plt.get_current_fig_manager()
+        man.set_window_title(f"Detected 2D LiDAR Wall - Bag: {image_and_scan.get_bag_name()}")
         ax = fig.add_subplot()
         ax.scatter(selected_lidar_points_xy[:,0],selected_lidar_points_xy[:,1], c='blue', label='Selected Points')
         ax.plot(lidar_wall_line[:,0], lidar_wall_line[:,1], c='cyan', label='Detected Wall')
@@ -770,6 +772,8 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
 
 
         fig = plt.figure()
+        man = plt.get_current_fig_manager()
+        man.set_window_title(f"Detected Points on Wall Edge - Bag: {image_and_scan.get_bag_name()}")
         ax = fig.add_subplot(projection='3d')
         ax.view_init(elev=-90, azim=-90)
         ax.scatter(corners_camera_frame[:,0],corners_camera_frame[:,1], corners_camera_frame[:,2], c='black', label='Detected Chessboard Corners')
