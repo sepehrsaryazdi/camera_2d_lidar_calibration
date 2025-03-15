@@ -16,6 +16,7 @@ from rcl_interfaces.msg import SetParametersResult
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_tkagg as tkagg 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from scipy.spatial.distance import pdist, squareform
 import time
 import laser_geometry
 home = Path.home()
@@ -216,7 +217,7 @@ class CameraParameters:
         assert isinstance(camera_intrinsic_matrix, np.ndarray), "Error: camera_intrinsic_matrix must be a matrix."
         assert camera_intrinsic_matrix.shape == (3,3), "Error: camera_intrinsic_matrix must be a 3x3 matrix."
         self.camera_intrinsic_matrix = camera_intrinsic_matrix
-        self.distortion_coeffs = [k1,k2,p1,p2,k3]
+        self.distortion_coeffs = np.array([k1,k2,p1,p2,k3])
         
     def get_camera_parameters(self) -> tuple[np.ndarray, list]:
         return (self.camera_intrinsic_matrix.copy(), self.distortion_coeffs.copy())
@@ -292,13 +293,179 @@ class BagToImageAndScans(Node):
     def get_image_and_laser_scans(self) -> list[ImageAndScans]:
         return self.image_and_scan_list.copy()
 
+def visualise_image(image:np.ndarray):
+    fig = plt.figure()
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    plt.imshow(image)
+    plt.show()
 
+def get_vertical_and_horizontal_lines(img:np.ndarray):
+    dst = cv2.Canny(img, 50, 200, None, 3)
+    
+    # print(img.shape)
+
+    # Copy edges to the images that will display the results in BGR
+    cdst = cv2.cvtColor(dst, cv2.COLOR_GRAY2BGR)
+    cdstP = np.copy(cdst)
+    
+    linesP = cv2.HoughLinesP(dst, 1, np.pi / 180, 50, None, 50, 10)
+    
+    vertical_gradient_min = 10 # minimum gradient to be considered a vertical line
+    horizontal_gradient_max = 5 # maximum gradient to be considered a horizontal line
+
+    vertical_lines = []
+    horizontal_lines = []
+    if linesP is not None:
+        for i in range(0, len(linesP)):
+            l = linesP[i][0]
+            m = (l[3] - l[1])/(l[2]-l[0]) if l[2]!=l[0] else np.inf
+            if np.abs(m) >= vertical_gradient_min:
+                vertical_lines.append([(l[0], l[1]), (l[2], l[3])])
+                cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv2.LINE_AA)
+            if np.abs(m) <= horizontal_gradient_max:
+                horizontal_lines.append([(l[0], l[1]), (l[2], l[3])])
+
+    cv2.imshow("Source", img)
+    cv2.imshow("Detected Lines (in red) - Probabilistic Line Transform", cdstP)
+    
+    # cv2.waitKey()
+    return (np.array(vertical_lines), np.array(horizontal_lines))
+
+def get_detected_checkerboard(img:np.ndarray, camera_params:CameraParameters, chessboard_size=(11,8), square_size=2.0):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    img_size = (gray.shape[1], gray.shape[0])
+    
+    # Prepare object points, such as (0,0,0), (1,0,0), (2,0,0) ....,(10,7,0)
+    objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
+    objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2) * square_size
+
+    # Arrays to store object points and image points from all the images
+    # objp = []  # 3D point in real world space
+    corners2 = []  # 2D points in image plane
+
+
+    # Find chessboard corners
+    ret, corners = cv2.findChessboardCorners(gray, chessboard_size, None)
+    
+    # If corners found, refine and save them
+    if ret == True:
+        # Refine corner positions
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+        corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+
+        ret, rvec, tvec = cv2.solvePnP(objp, corners2, *camera_params.get_camera_parameters())
+
+        R, _ = cv2.Rodrigues(rvec)
+
+        # Full extrinsic matrix [R | t]
+        extrinsic_matrix = np.vstack([np.hstack((R, tvec)),[0,0,0,1]])
+
+        # print(corners2)
+        # Save object and image points
+        
+        # Draw and display corners
+        img_with_corners = img.copy()
+        cv2.drawChessboardCorners(img_with_corners, chessboard_size, corners2, ret)
+        
+        cv2.imshow("Image with Corners",img_with_corners)
+
+        # cv2.waitKey()
+
+        # Create detection results directory
+        # detection_dir = 'detection_results'
+        # if not os.path.exists(detection_dir):
+        #     os.makedirs(detection_dir)
+            
+        # # # Save image with drawn corners
+        # # base_name = os.path.basename(fname)
+        # # output_path = os.path.join(detection_dir, f"detected_{base_name}")
+        # # cv2.imwrite(output_path, img_with_corners)
+        return corners2.reshape(len(corners2),-1), objp, extrinsic_matrix
+    else:
+        return corners2, objp, extrinsic_matrix
+
+def checkerboard_pixels_to_camera_frame(image_points, camera_params:CameraParameters, extrinsic_matrix):
+    """
+    Assumes the n checkerboard image points are given in units of pixels, with shape n x 2.
+    Example: 
+    image_points = np.array([[10, 20], [30,40]], dtype=np.float32)
+    """
+    K_inv = np.linalg.inv(camera_params.get_camera_parameters()[0])
+
+    # Convert 2D image points to normalized camera coordinates
+    image_points_h = np.hstack((image_points, np.ones((image_points.shape[0], 1))))  # (u, v, 1)
+    camera_rays = (K_inv @ image_points_h.T).T  # Normalized direction vectors
+
+    checkerboard_position = (extrinsic_matrix @ (np.array([0,0,0,1]).reshape(4,1)))[:3,:]
+    checkerboard_x_vec = (extrinsic_matrix @ (np.array([1,0,0,1]).reshape(4,1)))[:3,:] - checkerboard_position
+    checkerboard_y_vec = (extrinsic_matrix @ (np.array([0,1,0,1]).reshape(4,1)))[:3,:] - checkerboard_position
+    
+    projected_rays = []
+    for ray in camera_rays:
+        ray = ray.reshape(3,1)
+        ray_trace_matrix = np.hstack([ray, checkerboard_x_vec, checkerboard_y_vec])
+        coeffs = np.linalg.inv(ray_trace_matrix) @ checkerboard_position
+        projected_ray = coeffs[0] * ray
+        projected_rays.append(projected_ray)
+    return np.array(projected_rays)
 
 def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list:list[ImageAndScans]):
     """
-    Performs Camera and 2D LiDAR calibration by assuming that the edges of wall corresopnd to edges of the selected points in scan.
+    Performs Camera and 2D LiDAR calibration by assuming that the edges of wall correspond to edges of the selected points in scan.
     """
+
+    img = image_and_scan_list[0].get_image()
+
+    h, w = img.shape[:2]
+    newcameramatrix, _ = cv2.getOptimalNewCameraMatrix(
+    *camera_params.get_camera_parameters(), (w,h), 1, (w,h)
+    )
+    undistorted_image = cv2.undistort(
+    img, *camera_params.get_camera_parameters(), None, newcameramatrix
+    )
+    img = undistorted_image
+    # cv2.imshow("undistorted", undistorted_image)
+
+
+    vertical_lines, horizontal_lines = get_vertical_and_horizontal_lines(img)
+    print(vertical_lines)
+
+    corners, corners_3d_world, extrinsic_matrix = get_detected_checkerboard(img, camera_params)
+    # print(corners_3d_world)
+    corners_camera_frame = np.array([extrinsic_matrix @ np.vstack([corner_3d.reshape(3,1),[1]]) for corner_3d in corners_3d_world])
     
+    
+    print(corners_camera_frame)
+
+
+    print(checkerboard_pixels_to_camera_frame(np.array([[10, 20], [30,40]], dtype=np.float32), camera_params, extrinsic_matrix))
+
+
+
+
+        
+        
+
+    # cv2.waitKey()
+
+
+    
+    # print(corners_projected.max(axis=0) - corners_projected.min(axis=0))
+
+    # cv2.projectPoints()
+    plt.figure()
+    plt.plot(corners_3d_world[:,0],corners_3d_world[:,1])
+    # plt.show()
+
+    # edges = cv2.Canny(img,100,200)
+
+    
+    # return 0
+
+
+    # visualise_image()
+    
+
     pass
 
 
@@ -311,12 +478,14 @@ def main(args=None):
         camera_params = bag_to_image_and_scans.get_camera_params()
         image_and_scan_list = bag_to_image_and_scans.get_image_and_laser_scans()
         
+        updated_image_and_scan_list = []
+
         for image_and_scan in image_and_scan_list:
             select_points_interface = SelectPointsInterface(image_and_scan)
             image_and_scan = select_points_interface.run()
-            
-            print(len(image_and_scan.get_selected_lidar_points()))
+            updated_image_and_scan_list.append(image_and_scan)
 
+        camera_lidar_calibration(camera_params,updated_image_and_scan_list)
 
 
         # rclpy.spin(bag_to_image_and_scans)
