@@ -1,0 +1,11 @@
+camera_2d_lidar_calibration:
+  ros__parameters:
+    intrinsic_camera_matrix: [637.707576, 0.000000, 236.448471,
+                    0.000000, 636.894571, 135.431483,
+                    0.000000, 0.000000, 1.000000]
+    distortion_coefficients:
+      k1: 0.409146
+      k2: -1.402594
+      p1: 0.001855
+      p2: -0.015835
+      k: -10.836512
