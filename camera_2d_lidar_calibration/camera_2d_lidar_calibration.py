@@ -49,6 +49,9 @@ class ImageAndScans:
     def get_selected_lidar_points(self):
         return self.selected_lidar_pc2_points.copy()
     
+    def copy(self):
+        return ImageAndScans(self.get_image(), self.get_scans())
+    
 
 
 class SelectPointsInterface:
@@ -65,7 +68,7 @@ class SelectPointsInterface:
         self.menubar = tk.Menu(self.root)        
         self.app = tk.Frame(self.root)
 
-        self.image_and_scans = image_and_scans
+        self.image_and_scans = image_and_scans.copy()
         
         minimise_window_text = tk.Label(self.root,
                                             text="Use the slides to choose the starting and ending indices of 2D LiDAR scans respectively. \nSelect 2D LiDAR points corresponding to the perpendicular surface \nby using the Zoom feature followed by clicking 'Select Points'.\nOnce finished, click 'Done'.")
@@ -192,7 +195,7 @@ class SelectPointsInterface:
         points_xy = np.array([[point[0], point[1]] for point in points])
         self.ax_lidar_points = self.ax.scatter(points_xy[:,0], points_xy[:,1], c='blue')
 
-    def run(self):
+    def run(self) -> ImageAndScans:
         self.app.mainloop()
         return self.image_and_scans
     
