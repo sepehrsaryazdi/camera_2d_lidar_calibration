@@ -8,6 +8,8 @@ from rclpy.serialization import deserialize_message
 import cv2
 import cv_bridge
 from pathlib import Path
+from rcl_interfaces.msg import SetParametersResult
+
 home = Path.home()
 
 class BagToImage(Node):
@@ -15,6 +17,14 @@ class BagToImage(Node):
     def __init__(self):
         super().__init__('camera_2d_lidar_calibration')
         
+        # Declare parameters with default values
+        self.declare_parameter("camera_intrinsic_matrix", [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0])
+
+        # Retrieve parameters
+        camera_intrinsic_matrix = self.get_parameter("camera_intrinsic_matrix").value
+
+
+
         self.publisher = self.create_publisher(Image, '/image', 10) # publisher for real-time monitoring if necessary
 
         bags_location = f'{home}/ros2_ws/src/camera_2d_lidar_calibration/bags/'
