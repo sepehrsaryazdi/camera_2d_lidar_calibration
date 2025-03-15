@@ -20,6 +20,10 @@ import time
 import laser_geometry
 home = Path.home()
 
+
+
+
+
 class ImageAndScans:
     def __init__(self, image:np.ndarray, scans:list[LaserScan]):
         assert isinstance(image, np.ndarray), "Error: image must be of the form cv2.self.root"
@@ -28,6 +32,7 @@ class ImageAndScans:
             assert isinstance(scan, LaserScan), "Error: scans must contain LaserScan objects."
         self.image = image
         self.scans = scans
+        self.selected_points_bool = False
         self.selected_lidar_pc2_points = None
 
     def concatenate_scans_to_points(self, indices=[0]) -> np.ndarray:
@@ -41,14 +46,21 @@ class ImageAndScans:
     
     def set_selected_lidar_points(self, selected_points:np.ndarray):
         self.selected_lidar_pc2_points = selected_points.copy()
+        self.selected_points_bool = True
 
     def get_image(self) -> np.ndarray:
         return self.image.copy()
     def get_scans(self) -> list[LaserScan]:
         return self.scans.copy()
-    def get_selected_lidar_points(self):
-        return self.selected_lidar_pc2_points.copy()
     
+    def has_selected_points(self):
+        return self.selected_points_bool
+
+    def get_selected_lidar_points(self):
+        if self.selected_points_bool:
+            return self.selected_lidar_pc2_points.copy()
+        else:
+            return None
     def copy(self):
         return ImageAndScans(self.get_image(), self.get_scans())
     
@@ -279,7 +291,17 @@ class BagToImageAndScans(Node):
     
     def get_image_and_laser_scans(self) -> list[ImageAndScans]:
         return self.image_and_scan_list.copy()
+
+
+
+def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list:list[ImageAndScans]):
+    """
+    Performs Camera and 2D LiDAR calibration by assuming that the edges of wall corresopnd to edges of the selected points in scan.
+    """
     
+    pass
+
+
 
 def main(args=None):
     try:
