@@ -8,6 +8,7 @@ from rclpy.serialization import deserialize_message
 import cv2
 import cv_bridge
 from pathlib import Path
+import sensor_msgs_py.point_cloud2 as pc2
 import numpy as np
 from rcl_interfaces.msg import SetParametersResult
 import laser_geometry
@@ -21,9 +22,18 @@ class ImageAndScans:
             assert isinstance(scan, LaserScan), "Error: scans must contain LaserScan objects."
         self.image = image
         self.scans = scans
-    def get_image(self):
+
+    def concatenate_scans_to_points(self) -> np.ndarray:
+        scans = self.get_scans()
+        laser_projection = laser_geometry.LaserProjection()
+        projected_scans = [laser_projection.projectLaser(scan) for scan in scans]
+        scans_numpy = [pc2.read_points(scan) for scan in projected_scans]
+        concatenated_scans = np.concatenate(scans_numpy)
+        return concatenated_scans # x,y,z,intensity,index
+
+    def get_image(self) -> np.ndarray:
         return self.image.copy()
-    def get_scans(self):
+    def get_scans(self) -> list[LaserScan]:
         return self.scans.copy()
     
 class CameraParameters:
@@ -33,7 +43,7 @@ class CameraParameters:
         self.camera_intrinsic_matrix = camera_intrinsic_matrix
         self.distortion_coeffs = [k1,k2,p1,p2,k3]
         
-    def get_camera_parameters(self):
+    def get_camera_parameters(self) -> tuple[np.ndarray, list]:
         return (self.camera_intrinsic_matrix.copy(), self.distortion_coeffs.copy())
 
 class BagToImageAndScans(Node):
@@ -101,15 +111,24 @@ class BagToImageAndScans(Node):
                 scans.append(decoded_data)      
         return ImageAndScans(image, scans)
 
+    def get_camera_params(self) -> list[CameraParameters]:
+        return self.camera_params
+    
+    def get_image_and_laser_scans(self) -> list[ImageAndScans]:
+        return self.image_and_scan_list.copy()
+    
 
 def main(args=None):
     try:
         rclpy.init(args=args)
-        sbr = BagToImageAndScans()
+        bag_to_image_and_scans = BagToImageAndScans()
         
+        camera_params = bag_to_image_and_scans.get_camera_params()
+        image_and_scan_list = bag_to_image_and_scans.get_image_and_laser_scans()
 
+        print(image_and_scan_list[0].concatenate_scans_to_points())
 
-        rclpy.spin(sbr)
+        # rclpy.spin(bag_to_image_and_scans)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
 
