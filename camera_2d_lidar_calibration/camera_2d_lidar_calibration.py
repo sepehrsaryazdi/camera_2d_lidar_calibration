@@ -30,10 +30,10 @@ class ImageAndScans:
         assert isinstance(scans , list), "Error: scans must be a list."
         for scan in scans:
             assert isinstance(scan, LaserScan), "Error: scans must contain LaserScan objects."
-        self.image = image
-        self.scans = scans
-        self.selected_points_bool = False
-        self.selected_lidar_pc2_points = None
+        self.image_ = image
+        self.scans_ = scans
+        self.selected_points_bool_ = False
+        self.selected_lidar_pc2_points_ = None
 
     def concatenate_scans_to_points(self, indices=[0]) -> np.ndarray:
         scans = self.get_scans()
@@ -45,20 +45,20 @@ class ImageAndScans:
         return concatenated_scans # x,y,z,intensity,index
     
     def set_selected_lidar_points(self, selected_points:np.ndarray):
-        self.selected_lidar_pc2_points = selected_points.copy()
-        self.selected_points_bool = True
+        self.selected_lidar_pc2_points_ = selected_points.copy()
+        self.selected_points_bool_ = True
 
     def get_image(self) -> np.ndarray:
-        return self.image.copy()
+        return self.image_.copy()
     def get_scans(self) -> list[LaserScan]:
-        return self.scans.copy()
+        return self.scans_.copy()
     
     def has_selected_points(self):
-        return self.selected_points_bool
+        return self.selected_points_bool_
 
     def get_selected_lidar_points(self):
-        if self.selected_points_bool:
-            return self.selected_lidar_pc2_points.copy()
+        if self.selected_points_bool_:
+            return self.selected_lidar_pc2_points_.copy()
         else:
             return None
     def copy(self):
