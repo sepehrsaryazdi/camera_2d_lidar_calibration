@@ -23,7 +23,6 @@ import laser_geometry
 home = Path.home()
 
 
-
 class ImageAndScans:
     def __init__(self, image:np.ndarray, scans:list[LaserScan]):
         assert isinstance(image, np.ndarray), "Error: image must be of the form cv2.self.root"
@@ -34,8 +33,10 @@ class ImageAndScans:
         self.scans_ = scans
         self.selected_points_bool_ = False
         self.selected_lidar_pc2_points_ = None
-        self.selected_lines_bool_ = False
-        self.selected_lines_ = None
+        self.selected_left_lines_bool_ = False
+        self.selected_left_lines_ = None
+        self.selected_right_lines_bool_ = False
+        self.selected_right_lines_ = None
         self.undistorted_image_bool_ = False
         self.undistorted_image_ = None
 
@@ -57,9 +58,13 @@ class ImageAndScans:
         self.selected_lidar_pc2_points_ = selected_points.copy()
         self.selected_points_bool_ = True
     
-    def set_selected_lines(self, selected_lines:np.ndarray):
-        self.selected_lines_ = selected_lines.copy()
-        self.selected_lines_bool_ = True
+    def set_selected_left_lines(self, selected_lines:np.ndarray):
+        self.selected_left_lines_ = selected_lines.copy()
+        self.selected_left_lines_bool_ = True
+
+    def set_selected_right_lines(self, selected_lines:np.ndarray):
+        self.selected_right_lines_ = selected_lines.copy()
+        self.selected_right_lines_bool_ = True
 
     def get_image(self) -> np.ndarray:
         return self.image_.copy()
@@ -72,8 +77,11 @@ class ImageAndScans:
     def has_selected_points(self):
         return self.selected_points_bool_
     
-    def has_selected_lines(self):
-        return self.selected_lines_bool_
+    def has_selected_left_lines(self):
+        return self.selected_left_lines_bool_
+    
+    def has_selected_right_lines(self):
+        return self.selected_right_lines_bool_
     
     def get_undistorted_image(self):
         if self.undistorted_image_bool_:
@@ -87,20 +95,28 @@ class ImageAndScans:
         else:
             return None
     
-    def get_selected_lines(self):
-        if self.selected_lines_bool_:
-            return self.selected_lines_.copy()
+    def get_selected_left_lines(self):
+        if self.selected_left_lines_bool_:
+            return self.selected_left_lines_.copy()
         else:
             return None
         
+    def get_selected_right_lines(self):
+        if self.selected_right_lines_bool_:
+            return self.selected_right_lines_.copy()
+        else:
+            return None
+
     def copy(self):
         image_and_scans_copy = ImageAndScans(self.get_image(), self.get_scans())
         if self.has_undistored_image():
             image_and_scans_copy.set_undistorted_image(self.get_undistorted_image())
         if self.has_selected_points():
             image_and_scans_copy.set_selected_lidar_points(self.get_selected_lidar_points())
-        if self.has_selected_lines():
-            image_and_scans_copy.set_selected_lines(self.get_selected_lines())
+        if self.has_selected_left_lines():
+            image_and_scans_copy.set_selected_left_lines(self.get_selected_left_lines())
+        if self.has_selected_right_lines():
+            image_and_scans_copy.set_selected_right_lines(self.get_selected_right_lines())
         return image_and_scans_copy
 
 class SelectLinesInterface:
@@ -238,7 +254,10 @@ class SelectLinesInterface:
         self.figure.canvas.flush_events()
 
     def done_callback(self, event):
-        pass
+        if self.selected_left_lines_indices and self.selected_right_lines_indices:
+            self.image_and_scans.set_selected_left_lines(self.vertical_lines[self.selected_left_lines_indices])
+            self.image_and_scans.set_selected_right_lines(self.vertical_lines[self.selected_right_lines_indices])
+            self.root.destroy()
 
 
     def run(self) -> ImageAndScans:
@@ -589,9 +608,12 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
     """
     Performs Camera and 2D LiDAR calibration by assuming that the edges of wall correspond to edges of the selected points in scan.
     """
+
+
     img = undistort_image(image_and_scan_list[0].get_image(), camera_params)
 
-    overlayed_image, vertical_lines, horizontal_lines = get_vertical_and_horizontal_lines(img)
+    # overlayed_image, vertical_lines, horizontal_lines = get_vertical_and_horizontal_lines(img)
+    vertical_lines = image_and_scan_list[0].get_selected_left_lines()
     print(vertical_lines)
 
     corners, corners_3d_world, extrinsic_matrix = get_detected_checkerboard(img, camera_params)
@@ -678,7 +700,6 @@ def main(args=None):
         for image_and_scan in image_and_scan_list:
             select_lines_interface = SelectLinesInterface(image_and_scan)
             image_and_scan = select_lines_interface.run()
-            exit()
             updated_image_and_scan_list.append(image_and_scan)
 
         camera_lidar_calibration(camera_params,updated_image_and_scan_list)
