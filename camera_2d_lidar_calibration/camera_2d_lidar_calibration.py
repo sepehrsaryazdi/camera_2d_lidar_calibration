@@ -19,6 +19,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from scipy.spatial.distance import pdist, squareform
 import time
 from mpl_toolkits.mplot3d import Axes3D
+from sklearn import linear_model
 import laser_geometry
 home = Path.home()
 
@@ -612,35 +613,76 @@ def compute_ray_plane_intersection(ray_origin, ray, point_on_plane, basis_v1, ba
     projected_ray = coeffs[0] * ray + ray_origin
     return projected_ray.reshape(3)
 
-def get_line_end_points(vertical_lines) -> tuple[np.ndarray, np.ndarray]:
-    vertical_lines = vertical_lines.reshape(-1,2)
-    # mean = np.mean(vertical_lines,axis=1)
-    # # # print(vertical_lines)
-    # # # print(mean)
- 
-    # # U, s, Vt = np.linalg.svd(vertical_lines - mean, full_matrices=False)
-    # # V = Vt.T
-    # # S = np.diag(s)
-    # # # Mhat = np.dot(U, np.dot(S, V.T))
-    
-    # # # print(U[:, :1])
-    # # # print(mean.T)
-    # # # print((U[:, :1] + mean).T)
-    # # first_point_on_line = V[:1,:].T  - S[0,0]*mean
-    # # second_point_on_line = V[:1,:].T + S[0,0]*mean
-    # # return (first_point_on_line.reshape(2), second_point_on_line.reshape(2))
+def first_principal_component(points:np.ndarray):
+    """
+    Compute first principal component, assuming points are in the form [p1,p2,p3,p4,...] as row vectors
+    """
+    B = np.array(points)
+    mean = np.mean(B, axis=0) 
+    B1 = B-mean
+    U, S, Vt = np.linalg.svd(B1, full_matrices=True)
+    first_component = Vt[0,:]
+    std_first_component = S[0]
 
-    # # if we use only the first 20 PCs the reconstruction is less accurate
-    # # Mhat2 = np.dot(U[:, :1], np.dot(S[:1, :1], V[:,:1].T))
-    # m, b = np.polyfit(vertical_lines[:,1],vertical_lines[:,0], 1)
+    return (mean, first_component, std_first_component)
+
+def ransac(points:np.ndarray):
+    """
+    Apply RANSAC on 2D points.
+    """
+    ranges = points.max(axis=0) - points.min(axis=0)
+    smallest_range_axis = np.argmin(ranges)
     
-    # mean_y = mean[0]
-    # first_point = np.array([1/m * mean_y - b/m, mean_y])
-    # second_point = np.array([1.1/m * mean_y - b/m, 1.1*mean_y])
-    # return (first_point, second_point)
-    return (vertical_lines[0], vertical_lines[1])
-    # np.linalg.lstsq()
+    x_indices = []
+    for i in range(len(ranges)):
+        if i != smallest_range_axis:
+            x_indices.append(i)
+    x_indices = np.array(x_indices)
+    X = points[:,x_indices].reshape(len(points),points.shape[1]-1)
+    y = points[:,smallest_range_axis]
+
+    ransac = linear_model.RANSACRegressor()
+    ransac.fit(X, y)
+    inlier_mask = ransac.inlier_mask_
+    outlier_mask = np.logical_not(inlier_mask)
+
+    line_X = np.linspace(X[inlier_mask].min(), X[inlier_mask].max(),2)[:, np.newaxis]
+    line_y_ransac = ransac.predict(line_X)
+
+
+    reconstructed_line = np.zeros(shape=(len(line_X),len(ranges)))
+    reconstructed_line[:,x_indices] = line_X
+    reconstructed_line[:, smallest_range_axis] = line_y_ransac
+
+    # Compare estimated coefficients
+
+    lw = 2
+    plt.scatter(
+        points[inlier_mask,0], points[inlier_mask,1], color="gold", marker=".", label="Inliers"
+    )
+    plt.scatter(
+        points[outlier_mask,0], points[outlier_mask,1], color="red", marker=".", label="Outliers"
+    )
+    plt.plot(
+        reconstructed_line[:,0],
+        reconstructed_line[:,1],
+        color="cornflowerblue",
+        linewidth=lw,
+        label="RANSAC regressor",
+    )
+    plt.legend(loc="lower right")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title("Detected 2D LiDAR Wall")
+    plt.show()
     
+    return reconstructed_line
+
+
+def get_line_end_points(points_on_line) -> tuple[np.ndarray, np.ndarray]:
+    mean, first_component, std_first_component = first_principal_component(points_on_line)
+    return (mean-std_first_component*first_component, mean+std_first_component*first_component)
+
 
 
 def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list:list[ImageAndScans]):
@@ -655,8 +697,8 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
     vertical_left_lines = image_and_scan_list[0].get_selected_left_lines()
     vertical_right_lines = image_and_scan_list[0].get_selected_right_lines()
 
-    vertical_left_line = np.array(get_line_end_points(vertical_left_lines))
-    vertical_right_line =  np.array(get_line_end_points(vertical_right_lines))
+    vertical_left_line = np.array(get_line_end_points(vertical_left_lines.reshape(-1,2)))
+    vertical_right_line =  np.array(get_line_end_points(vertical_right_lines.reshape(-1,2)))
 
     print(vertical_left_line, vertical_right_line)
 
@@ -691,10 +733,16 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
 
 
 
+    # print(image_and_scan_list[0].get_selected_lidar_points())
+    selected_lidar_points = image_and_scan_list[0].get_selected_lidar_points()
+    selected_lidar_points_xyz = np.array([[point[0],point[1],point[2]] for point in selected_lidar_points])
+    lidar_wall_line = ransac(selected_lidar_points_xyz[:,:-1])
 
-        
-        
-
+    # fig = plt.figure()
+    # ax = fig.add_subplot()
+    # ax.scatter(selected_lidar_points_xyz[:,0],selected_lidar_points_xyz[:,1])
+    # ax.plot(lidar_wall_line[:,0], lidar_wall_line[:,1])
+    # plt.show()
     # cv2.waitKey()
 
 
