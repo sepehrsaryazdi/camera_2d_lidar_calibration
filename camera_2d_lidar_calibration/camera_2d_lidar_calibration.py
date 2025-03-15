@@ -139,8 +139,8 @@ class SelectLinesInterface:
 
 
         self.image_with_lines, self.vertical_lines, horizontal_lines = get_vertical_and_horizontal_lines(self.image_and_scans.get_undistorted_image())
-        self.ax_selected_left_edge_lines = None
-        self.ax_selected_right_edge_lines = None
+        self.ax_selected_left_edge_lines = []
+        self.ax_selected_right_edge_lines = []
         self.selected_left_lines_indices = None
         self.selected_right_lines_indices = None
 
@@ -178,22 +178,23 @@ class SelectLinesInterface:
 
     def clear_selected_left_edge_lines(self):
         if self.ax_selected_left_edge_lines:
-            self.ax_selected_left_edge_lines.remove()
+            for ax_line in self.ax_selected_left_edge_lines:
+                self.ax.lines.remove(ax_line[0])
         self.ax_selected_left_edge_lines = None
         self.selected_left_lines_indices = None
 
     def clear_selected_right_edge_lines(self):
         if self.ax_selected_right_edge_lines:
-            self.ax_selected_right_edge_lines.remove()
+            for ax_line in self.ax_selected_right_edge_lines:
+                self.ax.lines.remove(ax_line[0])
         self.ax_selected_right_edge_lines = None
         self.selected_right_lines_indices = None
 
     
 
     def select_left_edge_lines(self, event):
-        # print(self.xlims)
-        # print(self.ylims)
-        # print(self.vertical_lines)
+        self.clear_selected_left_edge_lines()
+
         bounding_box_points = np.array(np.round([(self.xlims[0], self.ylims[0]), (self.xlims[0], self.ylims[1]), (self.xlims[1], self.ylims[1]), (self.xlims[1],self.ylims[0])]), np.int32)
         
         selected_left_lines_indices = []
@@ -206,15 +207,35 @@ class SelectLinesInterface:
         self.selected_left_lines_indices = selected_left_lines_indices
         selected_left_lines = self.vertical_lines[self.selected_left_lines_indices]
         
+        self.ax_selected_left_edge_lines = []
         for line in selected_left_lines:
-            self.ax.plot((line[0,0], line[1,0]), (line[0,1], line[1,1]),c='red', linewidth=2.0)
-            # self.ax.plot(line[:,0],line[:,1], line[:,2], c='red')
+            self.ax_selected_left_edge_lines.append(self.ax.plot((line[0,0], line[1,0]), (line[0,1], line[1,1]),c='red', linewidth=2.0))
         
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
+    
     def select_right_edge_lines(self, event):
-        pass
+        self.clear_selected_right_edge_lines()
+
+        bounding_box_points = np.array(np.round([(self.xlims[0], self.ylims[0]), (self.xlims[0], self.ylims[1]), (self.xlims[1], self.ylims[1]), (self.xlims[1],self.ylims[0])]), np.int32)
+        
+        selected_right_lines_indices = []
+        for i, vertical_line in enumerate(self.vertical_lines):
+            for vertical_line_boundary_pt in vertical_line:
+                dist = cv2.pointPolygonTest(bounding_box_points, (int(vertical_line_boundary_pt[0]), int(vertical_line_boundary_pt[1])), False)
+                if dist >= 0:
+                    selected_right_lines_indices.append(i)
+                    break
+        self.selected_right_lines_indices = selected_right_lines_indices
+        selected_right_lines = self.vertical_lines[self.selected_right_lines_indices]
+        
+        self.ax_selected_right_edge_lines = []
+        for line in selected_right_lines:
+            self.ax_selected_right_edge_lines.append(self.ax.plot((line[0,0], line[1,0]), (line[0,1], line[1,1]),c='green', linewidth=2.0))
+        
+        self.figure.canvas.draw()
+        self.figure.canvas.flush_events()
 
     def done_callback(self, event):
         pass
