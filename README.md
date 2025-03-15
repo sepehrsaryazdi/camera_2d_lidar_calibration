@@ -18,8 +18,8 @@ To see a typical example that satisfies the assumptions above, refer to the foll
 In this example, both the chessboard and the edges of the wall are within full-view.
 
 <p align="center">
-<img src="readme_pictures/camera_pov.png" height="400">
-<img src="readme_pictures/lidar_scans.png" height="400">
+<img src="readme_pictures/camera_pov.png" height="200">
+<img src="readme_pictures/lidar_scans.png" height="200">
 </p>
 
 
