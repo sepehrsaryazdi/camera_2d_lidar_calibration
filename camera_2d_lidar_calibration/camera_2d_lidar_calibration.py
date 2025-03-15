@@ -56,6 +56,12 @@ class SelectPointsInterface:
         self.root.geometry("500x500")
         self.menubar = tk.Menu(self.root)        
         self.app = tk.Frame(self.root)
+        
+        minimise_window_text = tk.Label(self.root,
+                                            text="Please select 2D LiDAR points corresponding to the perpendicular surface \nby using the Zoom feature followed by clicking 'Select Points'.")
+        minimise_window_text.pack(padx=5, pady=5)
+
+        
         self.button_frame = ttk.Frame(self.root)    
         self.button_frame.pack(side="top", pady=(20,0))
 
