@@ -24,8 +24,6 @@ home = Path.home()
 
 
 
-
-
 class ImageAndScans:
     def __init__(self, image:np.ndarray, scans:list[LaserScan]):
         assert isinstance(image, np.ndarray), "Error: image must be of the form cv2.self.root"
@@ -36,6 +34,11 @@ class ImageAndScans:
         self.scans_ = scans
         self.selected_points_bool_ = False
         self.selected_lidar_pc2_points_ = None
+        self.selected_lines_bool_ = False
+        self.selected_lines_ = None
+        self.undistorted_image_bool_ = False
+        self.undistorted_image_ = None
+
 
     def concatenate_scans_to_points(self, indices=[0]) -> np.ndarray:
         scans = self.get_scans()
@@ -46,27 +49,146 @@ class ImageAndScans:
         concatenated_scans = np.concatenate(scans_numpy)
         return concatenated_scans # x,y,z,intensity,index
     
+    def set_undistorted_image(self, undistorted_image:np.ndarray):
+        self.undistorted_image_ = undistorted_image.copy()
+        self.undistorted_image_bool_ = True
+ 
     def set_selected_lidar_points(self, selected_points:np.ndarray):
         self.selected_lidar_pc2_points_ = selected_points.copy()
         self.selected_points_bool_ = True
+    
+    def set_selected_lines(self, selected_lines:np.ndarray):
+        self.selected_lines_ = selected_lines.copy()
+        self.selected_lines_bool_ = True
 
     def get_image(self) -> np.ndarray:
         return self.image_.copy()
     def get_scans(self) -> list[LaserScan]:
         return self.scans_.copy()
     
+    def has_undistored_image(self):
+        return self.undistorted_image_bool_
+    
     def has_selected_points(self):
         return self.selected_points_bool_
-
+    
+    def has_selected_lines(self):
+        return self.selected_lines_bool_
+    
+    def get_undistorted_image(self):
+        if self.undistorted_image_bool_:
+            return self.undistorted_image_.copy()
+        else:
+            return None
+    
     def get_selected_lidar_points(self):
         if self.selected_points_bool_:
             return self.selected_lidar_pc2_points_.copy()
         else:
             return None
+    
+    def get_selected_lines(self):
+        if self.selected_lines_bool_:
+            return self.selected_lines_.copy()
+        else:
+            return None
+        
     def copy(self):
-        return ImageAndScans(self.get_image(), self.get_scans())
+        image_and_scans_copy = ImageAndScans(self.get_image(), self.get_scans())
+        if self.has_undistored_image():
+            image_and_scans_copy.set_undistorted_image(self.get_undistorted_image())
+        if self.has_selected_points():
+            image_and_scans_copy.set_selected_lidar_points(self.get_selected_lidar_points())
+        if self.has_selected_lines():
+            image_and_scans_copy.set_selected_lines(self.get_selected_lines())
+        return image_and_scans_copy
+
+class SelectLinesInterface:
+    """
+    Class for selecting lines corresponding to edge of ball wall.
+    """
+    def __init__(self, image_and_scans:ImageAndScans):
+        assert isinstance(image_and_scans, ImageAndScans), "Error: image_and_scans must be of type ImageAndScans."
+        self.root = tk.Tk()
+        self.root.title("Camera 2D LiDAR Calibration Menu - Wall Edge Selection")
+        self.root.geometry("700x700")
+        self.menubar = tk.Menu(self.root)        
+        self.app = tk.Frame(self.root)
+
+        self.image_and_scans = image_and_scans.copy()
+        
+        window_text = tk.Label(self.root,
+                            text="Select lines corresponding to the left and right edges of the perpendicular surface \nby using the Zoom feature followed by clicking 'Select Left Edge' and 'Select Right Edge'.\nOnce finished, click 'Done'.")
+        window_text.pack(padx=5, pady=5)
+
+                
+        self.button_frame = ttk.Frame(self.root)    
+        self.button_frame.pack(side="top", pady=(20,0))
+
+        self.select_left_edge_button = ttk.Button(self.button_frame, text="Select Left Edge Lines")
+        self.select_left_edge_button.pack(side="left", padx=25,pady=(0,10), ipadx=20, ipady=20)
+        self.select_left_edge_button.bind("<ButtonPress>", self.select_left_edge_lines)
+
+        self.select_right_edge_button = ttk.Button(self.button_frame, text="Select Right Edge Lines")
+        self.select_right_edge_button.pack(side="left", padx=25,pady=(0,10), ipadx=20, ipady=20)
+        self.select_right_edge_button.bind("<ButtonPress>", self.select_right_edge_lines)
+
+        self.done_button = ttk.Button(self.button_frame, text="Done")
+        self.done_button.pack(side="left", padx=25,pady=(0,10), ipadx=20, ipady=20)
+        self.done_button.bind("<ButtonPress>", self.done_callback)
+
+        self.vertical_lines = []
+
+        self.add_figure()
+
+        self.add_detected_lines(self.image_and_scans.get_undistorted_image())
+
+
+    def add_figure(self):
+
+        self.figure = plt.Figure(figsize=(7, 5), dpi=100)
+        self.ax = self.figure.add_subplot(111)
+        self.chart_type = FigureCanvasTkAgg(self.figure, self.root)
+        self.navigation_tool_bar = tkagg.NavigationToolbar2Tk(self.chart_type, self.root)
+        self.chart_type.get_tk_widget().pack()
+        self.ax.set_title('Detected Vertical Lines')
+        self.ax.callbacks.connect('xlim_changed', self.on_xlims_change)
+        self.ax.callbacks.connect('ylim_changed', self.on_ylims_change)
+        # self.ax.set_axis_off()
+        pass
+
+    def add_detected_lines(self, img):
+        print(img)
+        image_with_lines, vertical_lines, horizontal_lines = get_vertical_and_horizontal_lines(img)
+        
+        self.ax.imshow(image_with_lines)
+        pass
+
+    def on_xlims_change(self, event_ax):
+        self.xlims = event_ax.get_xlim()
+
+    def on_ylims_change(self, event_ax):
+        self.ylims = event_ax.get_ylim()
+
     
 
+    
+
+    def select_left_edge_lines(self, event):
+        pass
+
+    def select_right_edge_lines(self, event):
+        pass
+
+    def done_callback(self, event):
+        pass
+
+
+    def run(self) -> ImageAndScans:
+        self.app.mainloop()
+        return self.image_and_scans
+            
+ 
 
 class SelectPointsInterface:
     """
@@ -77,16 +199,16 @@ class SelectPointsInterface:
         assert isinstance(image_and_scans, ImageAndScans), "Error: image_and_scans must be of type ImageAndScans."
         
         self.root = tk.Tk()
-        self.root.title("Camera 2D LiDAR Calibration Menu")
+        self.root.title("Camera 2D LiDAR Calibration Menu - LiDAR 2D Point Selection")
         self.root.geometry("600x700")
         self.menubar = tk.Menu(self.root)        
         self.app = tk.Frame(self.root)
 
         self.image_and_scans = image_and_scans.copy()
         
-        minimise_window_text = tk.Label(self.root,
+        window_text = tk.Label(self.root,
                                             text="Use the slides to choose the starting and ending indices of 2D LiDAR scans respectively. \nSelect 2D LiDAR points corresponding to the perpendicular surface \nby using the Zoom feature followed by clicking 'Select Points'.\nOnce finished, click 'Done'.")
-        minimise_window_text.pack(padx=5, pady=5)
+        window_text.pack(padx=5, pady=5)
         
         self.scan_start_slider = tk.Scale(self.root, from_=0, to=len(image_and_scans.get_scans())-1, 
                                      tickinterval=int(len(image_and_scans.get_scans())/5), orient=tk.HORIZONTAL, 
@@ -99,9 +221,6 @@ class SelectPointsInterface:
                                      command=self.scan_slider_callback)
         self.scan_end_slider.set(len(image_and_scans.get_scans())-1)
         self.scan_end_slider.pack(ipadx=100)
-        
-
-        # scan_start_slider.bind("<ButtonRelease-1>", lambda event : print("test"))
         
         self.button_frame = ttk.Frame(self.root)    
         self.button_frame.pack(side="top", pady=(20,0))
@@ -165,18 +284,13 @@ class SelectPointsInterface:
             pc2_points = self.image_and_scans.concatenate_scans_to_points(self.scan_indices)
             selected_pc2_points = pc2_points[self.selected_points_indices]
             self.image_and_scans.set_selected_lidar_points(selected_pc2_points)
-            # print(len(self.image_and_scans.get_selected_lidar_points()))
             self.root.destroy()
 
     def on_xlims_change(self, event_ax):
         self.xlims = event_ax.get_xlim()
-        # print('updated xlims:', self.xlims)
 
     def on_ylims_change(self, event_ax):
         self.ylims = event_ax.get_ylim()
-        # self.clear_2d_lidar_points()
-        # print('updated ylims:', self.ylims)
-
 
     def add_figure(self):
 
@@ -186,8 +300,6 @@ class SelectPointsInterface:
         self.navigation_tool_bar = tkagg.NavigationToolbar2Tk(self.chart_type, self.root)
         self.chart_type.get_tk_widget().pack()
         self.ax.set_title('2D LiDAR Scanned Points')
-
-
         self.ax.callbacks.connect('xlim_changed', self.on_xlims_change)
         self.ax.callbacks.connect('ylim_changed', self.on_ylims_change)
         # self.ax.set_axis_off()
@@ -300,10 +412,8 @@ def visualise_image(image:np.ndarray):
     plt.imshow(image)
     plt.show()
 
-def get_vertical_and_horizontal_lines(img:np.ndarray):
+def get_vertical_and_horizontal_lines(img:np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     dst = cv2.Canny(img, 50, 200, None, 3)
-    
-    # print(img.shape)
 
     # Copy edges to the images that will display the results in BGR
     cdst = cv2.cvtColor(dst, cv2.COLOR_GRAY2BGR)
@@ -325,12 +435,7 @@ def get_vertical_and_horizontal_lines(img:np.ndarray):
                 cv2.line(cdstP, (l[0], l[1]), (l[2], l[3]), (0,0,255), 3, cv2.LINE_AA)
             if np.abs(m) <= horizontal_gradient_max:
                 horizontal_lines.append([(l[0], l[1]), (l[2], l[3])])
-
-    cv2.imshow("Source", img)
-    cv2.imshow("Detected Lines (in red) - Probabilistic Line Transform", cdstP)
-    
-    # cv2.waitKey()
-    return (np.array(vertical_lines), np.array(horizontal_lines))
+    return (cdstP, np.array(vertical_lines), np.array(horizontal_lines))
 
 def get_detected_checkerboard(img:np.ndarray, camera_params:CameraParameters, chessboard_size=(11,8), square_size=2.0):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -410,13 +515,8 @@ def checkerboard_pixels_to_camera_frame(image_points, camera_params:CameraParame
         projected_rays.append(projected_ray.reshape(3))
     return np.array(projected_rays)
 
-def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list:list[ImageAndScans]):
-    """
-    Performs Camera and 2D LiDAR calibration by assuming that the edges of wall correspond to edges of the selected points in scan.
-    """
 
-    img = image_and_scan_list[0].get_image()
-
+def undistort_image(img:np.ndarray, camera_params:CameraParameters):
     h, w = img.shape[:2]
     newcameramatrix, _ = cv2.getOptimalNewCameraMatrix(
     *camera_params.get_camera_parameters(), (w,h), 1, (w,h)
@@ -424,11 +524,17 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
     undistorted_image = cv2.undistort(
     img, *camera_params.get_camera_parameters(), None, newcameramatrix
     )
-    img = undistorted_image
+    return undistorted_image
     # cv2.imshow("undistorted", undistorted_image)
 
 
-    vertical_lines, horizontal_lines = get_vertical_and_horizontal_lines(img)
+def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list:list[ImageAndScans]):
+    """
+    Performs Camera and 2D LiDAR calibration by assuming that the edges of wall correspond to edges of the selected points in scan.
+    """
+    img = undistort_image(image_and_scan_list[0].get_image(), camera_params)
+
+    overlayed_image, vertical_lines, horizontal_lines = get_vertical_and_horizontal_lines(img)
     print(vertical_lines)
 
     corners, corners_3d_world, extrinsic_matrix = get_detected_checkerboard(img, camera_params)
@@ -492,11 +598,29 @@ def main(args=None):
         camera_params = bag_to_image_and_scans.get_camera_params()
         image_and_scan_list = bag_to_image_and_scans.get_image_and_laser_scans()
         
+        for image_and_scan in image_and_scan_list:
+            image_and_scan.set_undistorted_image(undistort_image(image_and_scan.get_image(), camera_params))
+        
+        # img, vertical_lines, horizontal_lines = get_vertical_and_horizontal_lines(image_and_scan_list[0].get_undistorted_image())
+        # cv2.imshow("undistorted", img)
+        # cv2.waitKey()
+        
+
         updated_image_and_scan_list = []
 
         for image_and_scan in image_and_scan_list:
             select_points_interface = SelectPointsInterface(image_and_scan)
             image_and_scan = select_points_interface.run()
+            updated_image_and_scan_list.append(image_and_scan)
+
+        image_and_scan_list = updated_image_and_scan_list
+
+
+        updated_image_and_scan_list = []
+
+        for image_and_scan in image_and_scan_list:
+            select_lines_interface = SelectLinesInterface(image_and_scan)
+            image_and_scan = select_lines_interface.run()
             updated_image_and_scan_list.append(image_and_scan)
 
         camera_lidar_calibration(camera_params,updated_image_and_scan_list)
