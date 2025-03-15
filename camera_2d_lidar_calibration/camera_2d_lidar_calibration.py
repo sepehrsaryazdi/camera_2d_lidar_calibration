@@ -678,7 +678,7 @@ def get_line_end_points(points_on_line) -> tuple[np.ndarray, np.ndarray]:
     mean, first_component, std_first_component = first_principal_component(points_on_line)
     return (mean-std_first_component*first_component, mean+std_first_component*first_component)
 
-def save_camera_lidar_calibration_results(image_and_scan_list:list[ImageAndScans], transformation):
+def save_camera_lidar_calibration_results(image_and_scan_list:list[ImageAndScans], transformation, scaling_factor):
     """Save camera 2d lidar calibration results"""
     save_location = f'{home}/ros2_ws/src/camera_2d_lidar_calibration/results/'
     if not os.path.exists(save_location):
@@ -693,7 +693,7 @@ def save_camera_lidar_calibration_results(image_and_scan_list:list[ImageAndScans
     with open(filename, 'w') as f:
         f.write("# Camera 2D LiDAR Calibration Results\n\n")
         f.write(f"# ROS Bags Used: {[image_and_scan.get_bag_name() for image_and_scan in image_and_scan_list]}\n\n")
-        
+        f.write(f"# Camera-to-LiDAR Scaling Factor (Prior to Transformation): {scaling_factor}\n\n")
         f.write("# Camera-to-LiDAR Transformation Matrix:\n")
         for row in transformation:
             f.write(f"{row[0]:.6f}, {row[1]:.6f}, {row[2]:.6f}, {row[3]:.6f}\n")
@@ -711,7 +711,7 @@ def save_camera_lidar_calibration_results(image_and_scan_list:list[ImageAndScans
     print(f"Camera 2D LiDAR calibration results saved to {filename}")
 
 
-def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list:list[ImageAndScans]):
+def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list:list[ImageAndScans], plotting=True):
     """
     Performs Camera and 2D LiDAR calibration by assuming that the edges of wall correspond to edges of the selected points in scan.
     """
@@ -770,7 +770,8 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
         ax.set_xlabel('x')
         ax.set_ylabel('y')
         ax.set_title('Detected 2D LiDAR Wall')
-        plt.show()
+        if plotting:
+            plt.show()
         # cv2.waitKey()
 
 
@@ -798,7 +799,8 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
         ax.set_title("Detected Points on Wall Edge (Camera Frame)")
         ax.legend()
         # plt.plot()
-        plt.show()
+        if plotting:
+            plt.show()
         
         wall_edge_camera_frame_points.append(projected_left_ray)
         wall_edge_lidar_points.append(lidar_wall_left)
@@ -814,10 +816,58 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
     rigid_transformation, scale = cv2.estimateAffine3D(wall_edge_camera_frame_points, wall_edge_lidar_points, force_rotation=True)
     transformation = np.vstack([rigid_transformation, np.array([0,0,0,1])])
 
-    save_camera_lidar_calibration_results(image_and_scan_list, transformation)
 
+    # test projection of a point from camera into lidar
+    # test_points = np.array([1/2*(projected_left_ray+projected_right_ray)])
+    test_points = np.linspace(projected_left_ray-1*(projected_right_ray-projected_left_ray), projected_right_ray+1*(projected_right_ray-projected_left_ray), 10)
+    
+    fig = plt.figure()
+    man = plt.get_current_fig_manager()
+    man.set_window_title(f"Detected Points on Wall Edge - Bag: {image_and_scan.get_bag_name()}")
+    ax = fig.add_subplot(projection='3d')
+    ax.view_init(elev=-90, azim=-90)
+    ax.scatter(corners_camera_frame[:,0],corners_camera_frame[:,1], corners_camera_frame[:,2], c='black', label='Detected Chessboard Corners')
+    ax.plot(corners_camera_frame[:,0],corners_camera_frame[:,1], corners_camera_frame[:,2], c='black', label='Chessboard Corner Ordering')
+    line = vertical_left_line_camera_frame
+    ax.plot(line[:,0],line[:,1], line[:,2], c='red', label='Wall Left Edge')
+    ax.scatter(projected_left_ray[0],projected_left_ray[1],projected_left_ray[2], c='purple', label='Projected Left Point')
+    line = vertical_right_line_camera_frame
+    ax.plot(line[:,0],line[:,1], line[:,2],c='green', label='Wall Right Edge')
+    ax.scatter(projected_right_ray[0],projected_right_ray[1],projected_right_ray[2], c='orange',label='Projected Right Point')
+    ax.set_box_aspect([ub - lb for lb, ub in (getattr(ax, f'get_{a}lim')() for a in 'xyz')])
+    ax.scatter(test_points[:,0], test_points[:,1], test_points[:,2], c='lime', label='Test Points')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_zlabel('z')
+    ax.set_title("Detected Points on Wall Edge (Camera Frame) - Reprojection Test Points")
+    ax.legend()
+    # plt.plot()
+    if plotting:
+        plt.show()
 
-    pass
+    transformed_points = []
+    for test_point in test_points:
+        transformed_point = (transformation @ np.vstack([(scale*test_point).reshape(3,1),[1]])).reshape(4)[:3]
+        transformed_points.append(transformed_point)
+    transformed_points=np.array(transformed_points)
+    
+    fig = plt.figure()
+    man = plt.get_current_fig_manager()
+    man.set_window_title(f"Detected 2D LiDAR Wall - Bag: {image_and_scan.get_bag_name()}")
+    ax = fig.add_subplot()
+    ax.scatter(selected_lidar_points_xy[:,0],selected_lidar_points_xy[:,1], c='blue', label='Selected Points')
+    ax.plot(lidar_wall_line[:,0], lidar_wall_line[:,1], c='cyan', label='Detected Wall')
+    ax.scatter(lidar_wall_left[0], lidar_wall_left[1], c='purple', label='Left Edge')
+    ax.scatter(lidar_wall_right[0], lidar_wall_right[1], c='orange', label='Right Edge')
+    ax.scatter(transformed_points[:,0], transformed_points[:,1], c='lime',label='Transformed Test Points') # ignore Z value
+    ax.legend()
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_title('Detected 2D LiDAR Wall - Reprojection Test Transformed Points')
+    if plotting:
+        plt.show()
+
+    save_camera_lidar_calibration_results(image_and_scan_list, transformation, scale)
 
 
 
