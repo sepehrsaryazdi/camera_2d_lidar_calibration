@@ -1,0 +1,11 @@
+# Camera 2D LiDAR Calibration Results
+
+# ROS Bags Used: ['rosbag2_2025_03_14-17_42_12', 'rosbag2_2025_03_14-17_31_13']
+
+# Camera-to-LiDAR Scaling Factor (Prior to Transformation): 0.009406448177231274
+
+# Camera-to-LiDAR Transformation Matrix:
+0.026175, -0.018136, 0.999493, 0.095044
+-0.999593, 0.010860, 0.026375, -0.057678
+-0.011332, -0.999777, -0.017844, -0.024366
+0.000000, 0.000000, 0.000000, 1.000000

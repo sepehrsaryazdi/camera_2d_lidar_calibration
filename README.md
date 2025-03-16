@@ -42,13 +42,15 @@ source install/setup.bash
 
 ## Usage
 
-To use this package, place the desired bags in `~/ros2_ws/src/camera_2d_lidar_calibration/bags/`. Ensure that the `$HOME` path variable is set correctly. Then, run the following:
+To use this package, place the desired bags in `~/ros2_ws/src/camera_2d_lidar_calibration/bags/`. Ensure that the `$HOME` path variable is set correctly. Then, modify the `camera_intrinsic_matrix` and `distortion_coefficients` in `~/ros2_ws/src/camera_2d_lidar_calibration/config/params.yaml` to match the camera's parameters. These coefficients can be obtained from any standard camera calibration method.
+
+After setting the parameters, run the following:
 
 ```
 ros2 launch camera_2d_lidar_calibration camera_2d_lidar_calibration.launch.py
 ```
 
-After running, an interface will appear with instructions on selecting 2D LiDAR points that represent the wall containing the chessboard pattern. To select the points, first change the sliders that control the starting and ending indices of scans from the ROS bag to a desired amount. Then, use the Zoom feature to zoom into a particular region and click `Select Points`. Once finished, click `Done` and repeat this for the other ROS bags.
+After running, an interface will appear with instructions on selecting 2D LiDAR points that represent the wall containing the chessboard pattern. To select the points, first change the sliders that control the starting and ending indices of scans from the ROS bag to desired values. Then, use the Zoom feature to zoom into a particular region and click `Select Points`. Once finished, click `Done` and repeat this for the other ROS bags.
 
 <p align="center">
 <img src="readme_pictures/lidar_2d_selection_menu.png" height="400">
@@ -67,4 +69,22 @@ To correspond the 2D LiDAR points with the camera frame, an interface will simil
 <img src="readme_pictures/wall_edge_selection.png" height="400">
 </p>
 
+After following these instructions, plots will appear for each bag that represent the fitted lines corresponding to the wall.
 
+<p align="center">
+<img src="readme_pictures/lidar_detected_wall.png" height="400">
+<img src="readme_pictures/camera_detected_wall.png" height="400">
+</p>
+
+As a sanity check, a set of test points from the camera frame are projected into the LiDAR frame.
+
+<p align="center">
+<img src="readme_pictures/test_points.png" height="400">
+<img src="readme_pictures/transformed_points.png" height="400">
+</p>
+
+The resulting calibration is saved in `~/ros2_ws/src/camera_2d_lidar_calibration/results/camera_2d_lidar_calibration_transformation_result_{timestamp}.txt`, alongside any relevant metadata. 
+
+Evidently, the transformed points are close albeit can differ from any individual ROS bag. Recording more ROS bags and selecting the LiDAR points more carefully will improve the accuracy.
+
+## How It Works
