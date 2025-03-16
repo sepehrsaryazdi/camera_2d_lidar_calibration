@@ -879,7 +879,7 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
     ax.legend()
     ax.set_xlabel('x')
     ax.set_ylabel('y')
-    ax.set_title('Detected 2D LiDAR Wall - Reprojection Test Transformed Points')
+    ax.set_title('Detected 2D LiDAR Wall - Reprojection Transformed Test Points')
     
 
     save_camera_lidar_calibration_results(image_and_scan_list, transformation, scale)
