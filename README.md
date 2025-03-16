@@ -36,6 +36,7 @@ cd ~/ros2_ws/src
 git clone https://github.com/sepehrsaryazdi/camera_2d_lidar_calibration.git
 cd camera_2d_lidar_calibration
 pip install -e . # install python dependencies
+cd ~/ros2_ws
 colcon build --packages-select camera_2d_lidar_calibration # build ROS dependencies
 source install/setup.bash
 ```
