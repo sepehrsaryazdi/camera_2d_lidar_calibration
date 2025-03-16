@@ -76,37 +76,37 @@ class ImageAndScans:
     def get_scans(self) -> list[LaserScan]:
         return self.scans_.copy()
     
-    def has_undistored_image(self):
+    def has_undistored_image(self) -> bool:
         return self.undistorted_image_bool_
     
-    def has_selected_points(self):
+    def has_selected_points(self)-> bool:
         return self.selected_points_bool_
     
-    def has_selected_left_lines(self):
+    def has_selected_left_lines(self)-> bool:
         return self.selected_left_lines_bool_
     
-    def has_selected_right_lines(self):
+    def has_selected_right_lines(self)-> bool:
         return self.selected_right_lines_bool_
     
-    def get_undistorted_image(self):
+    def get_undistorted_image(self) -> np.ndarray:
         if self.undistorted_image_bool_:
             return self.undistorted_image_.copy()
         else:
             return None
     
-    def get_selected_lidar_points(self):
+    def get_selected_lidar_points(self) -> np.ndarray:
         if self.selected_points_bool_:
             return self.selected_lidar_pc2_points_.copy()
         else:
             return None
     
-    def get_selected_left_lines(self):
+    def get_selected_left_lines(self) -> np.ndarray:
         if self.selected_left_lines_bool_:
             return self.selected_left_lines_.copy()
         else:
             return None
         
-    def get_selected_right_lines(self):
+    def get_selected_right_lines(self) -> np.ndarray:
         if self.selected_right_lines_bool_:
             return self.selected_right_lines_.copy()
         else:
@@ -170,7 +170,7 @@ class SelectLinesInterface:
         self.add_detected_lines(self.image_and_scans.get_undistorted_image())
 
 
-    def add_figure(self):
+    def add_figure(self) -> None:
 
         self.figure = plt.Figure(figsize=(7, 5), dpi=100)
         self.ax = self.figure.add_subplot(111)
@@ -181,10 +181,8 @@ class SelectLinesInterface:
         self.ax.set_title('Detected Vertical Lines')
         self.ax.callbacks.connect('xlim_changed', self.on_xlims_change)
         self.ax.callbacks.connect('ylim_changed', self.on_ylims_change)
-        # self.ax.set_axis_off()
-        pass
 
-    def add_detected_lines(self, img):
+    def add_detected_lines(self, img) -> None:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR) # changes image encoding from RGB to BGR for cv2.imwrite to work correctly
         self.ax.imshow(img)
 
@@ -192,20 +190,20 @@ class SelectLinesInterface:
             self.ax.plot((line[0,0], line[1,0]), (line[0,1], line[1,1]),c='blue', linewidth=2.0)
         
 
-    def on_xlims_change(self, event_ax):
+    def on_xlims_change(self, event_ax) -> None:
         self.xlims = event_ax.get_xlim()
 
-    def on_ylims_change(self, event_ax):
+    def on_ylims_change(self, event_ax) -> None:
         self.ylims = event_ax.get_ylim()
 
-    def clear_selected_left_edge_lines(self):
+    def clear_selected_left_edge_lines(self) -> None:
         if self.ax_selected_left_edge_lines:
             for ax_line in self.ax_selected_left_edge_lines:
                 self.ax.lines.remove(ax_line[0])
         self.ax_selected_left_edge_lines = None
         self.selected_left_lines_indices = None
 
-    def clear_selected_right_edge_lines(self):
+    def clear_selected_right_edge_lines(self) -> None:
         if self.ax_selected_right_edge_lines:
             for ax_line in self.ax_selected_right_edge_lines:
                 self.ax.lines.remove(ax_line[0])
@@ -214,7 +212,7 @@ class SelectLinesInterface:
 
     
 
-    def select_left_edge_lines(self, event):
+    def select_left_edge_lines(self, event) -> None:
         self.clear_selected_left_edge_lines()
 
         bounding_box_points = np.array(np.round([(self.xlims[0], self.ylims[0]), (self.xlims[0], self.ylims[1]), (self.xlims[1], self.ylims[1]), (self.xlims[1],self.ylims[0])]), np.int32)
@@ -237,7 +235,7 @@ class SelectLinesInterface:
         self.figure.canvas.flush_events()
 
     
-    def select_right_edge_lines(self, event):
+    def select_right_edge_lines(self, event) -> None:
         self.clear_selected_right_edge_lines()
 
         bounding_box_points = np.array(np.round([(self.xlims[0], self.ylims[0]), (self.xlims[0], self.ylims[1]), (self.xlims[1], self.ylims[1]), (self.xlims[1],self.ylims[0])]), np.int32)
@@ -259,7 +257,7 @@ class SelectLinesInterface:
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
-    def done_callback(self, event):
+    def done_callback(self, event) -> None:
         if self.selected_left_lines_indices and self.selected_right_lines_indices:
             self.image_and_scans.set_selected_left_lines(self.vertical_lines[self.selected_left_lines_indices])
             self.image_and_scans.set_selected_right_lines(self.vertical_lines[self.selected_right_lines_indices])
@@ -268,6 +266,7 @@ class SelectLinesInterface:
 
     def run(self) -> ImageAndScans:
         self.app.mainloop()
+        assert self.image_and_scans.has_selected_left_lines() and self.image_and_scans.has_selected_right_lines(), "Error: You must select left and right edges to proceed."
         return self.image_and_scans
             
  
@@ -369,7 +368,6 @@ class SelectPointsInterface:
             self.root.destroy()
 
     def on_xlims_change(self, event_ax):
-        print(event_ax)
         self.xlims = event_ax.get_xlim()
 
     def on_ylims_change(self, event_ax):
@@ -407,6 +405,7 @@ class SelectPointsInterface:
 
     def run(self) -> ImageAndScans:
         self.app.mainloop()
+        assert self.image_and_scans.has_selected_points(), "Error: You must select 2D LiDAR points to proceed."
         return self.image_and_scans
     
 class CameraParameters:
@@ -525,10 +524,12 @@ def get_detected_chessboard(img:np.ndarray, camera_params:CameraParameters, ches
     
     # Prepare object points, such as (0,0,0), (1,0,0), (2,0,0) ....,(10,7,0), plus any offsets
     
-    centre_offset = - np.min(chessboard_size)*square_size/2 # offset points so that origin is set to middle point instead of bottom
+    # This offsets points so that the chessboard's origin is set to middle point instead of the bottom. If perpendicularity assumption is met, this centre point does not matter. 
+    # However, we can heuristically help the estimation process by raising the height corresponding to the plane that the 2D LiDAR is scanning over
+    centre_offset = np.min(chessboard_size)*square_size/2 
 
     objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
-    objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2) * square_size + centre_offset
+    objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2) * square_size - centre_offset
 
     # Arrays to store object points and image points from all the images
     # objp = []  # 3D point in real world space
@@ -557,7 +558,7 @@ def get_detected_chessboard(img:np.ndarray, camera_params:CameraParameters, ches
         img_with_corners = img.copy()
         cv2.drawChessboardCorners(img_with_corners, chessboard_size, corners2, ret)
         
-        # cv2.imshow("Image with Corners",img_with_corners)
+        # cv2.imshow("Image with Corners",img_with_corners) # optional, must follow by cv2.waitKey() to show
         return corners2.reshape(len(corners2),-1), objp, extrinsic_matrix
     else:
         return corners2, objp, extrinsic_matrix
@@ -621,7 +622,7 @@ def first_principal_component(points:np.ndarray):
 
     return (mean, first_component, std_first_component)
 
-def ransac(points:np.ndarray):
+def ransac(points:np.ndarray, ransac_plot_title='RANSAC Regression', ransac_window_title='RANSAC Regression'):
     """
     Apply RANSAC on 2D points.
     """
@@ -651,25 +652,29 @@ def ransac(points:np.ndarray):
 
     # Compare estimated coefficients
 
-    # lw = 2
-    # plt.scatter(
-    #     points[inlier_mask,0], points[inlier_mask,1], color="gold", marker=".", label="Inliers"
-    # )
-    # plt.scatter(
-    #     points[outlier_mask,0], points[outlier_mask,1], color="red", marker=".", label="Outliers"
-    # )
-    # plt.plot(
-    #     reconstructed_line[:,0],
-    #     reconstructed_line[:,1],
-    #     color="cornflowerblue",
-    #     linewidth=lw,
-    #     label="RANSAC regressor",
-    # )
-    # plt.legend(loc="lower right")
-    # plt.xlabel("x")
-    # plt.ylabel("y")
-    # plt.title("Detected 2D LiDAR Wall")
-    # plt.show()
+    plt.figure()
+    man = plt.get_current_fig_manager()
+    man.set_window_title(ransac_window_title)    
+    lw = 2
+    plt.scatter(
+        points[inlier_mask,0], points[inlier_mask,1], color="gold", marker=".", label="Inliers"
+    )
+    plt.scatter(
+        points[outlier_mask,0], points[outlier_mask,1], color="red", marker=".", label="Outliers"
+    )
+    plt.plot(
+        reconstructed_line[:,0],
+        reconstructed_line[:,1],
+        color="cornflowerblue",
+        linewidth=lw,
+        label="RANSAC regressor",
+    )
+    plt.legend(loc="lower right")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.title(ransac_plot_title)
+    plt.show(block=False)
+    plt.pause(0.01)
     
     return reconstructed_line
 
@@ -699,7 +704,6 @@ def save_camera_lidar_calibration_results(image_and_scan_list:list[ImageAndScans
             f.write(f"{row[0]:.6f}, {row[1]:.6f}, {row[2]:.6f}, {row[3]:.6f}\n")
 
     for image_and_scan in image_and_scan_list:
-        # img = cv2.cvtColor(image_and_scan.get_undistorted_image(), cv2.COLOR_RGB2BGR)
         cv2.imwrite(folder_name + image_and_scan.get_bag_name() + ".png",image_and_scan.get_undistorted_image())
         selected_lidar_points = image_and_scan.get_selected_lidar_points()
         selected_lidar_points_filename = folder_name +  image_and_scan.get_bag_name() + f"_selected_2d_lidar_points_{timestamp}.txt"
@@ -723,7 +727,6 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
 
         img = undistort_image(image_and_scan.get_image(), camera_params)
 
-        # overlayed_image, vertical_lines, horizontal_lines = get_vertical_and_horizontal_lines(img)
         vertical_left_lines = image_and_scan.get_selected_left_lines()
         vertical_right_lines = image_and_scan.get_selected_right_lines()
 
@@ -747,7 +750,7 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
         
         selected_lidar_points = image_and_scan.get_selected_lidar_points()
         selected_lidar_points_xy = np.array([[point[0],point[1]] for point in selected_lidar_points])
-        lidar_wall_line = ransac(selected_lidar_points_xy)
+        lidar_wall_line = ransac(selected_lidar_points_xy, ransac_plot_title='RANSAC Detection',ransac_window_title=f"RANSAC Detection - Bag: {image_and_scan.get_bag_name()}")
 
         lidar_wall_left = lidar_wall_line[0,:]
         lidar_wall_right = lidar_wall_line[1,:]
