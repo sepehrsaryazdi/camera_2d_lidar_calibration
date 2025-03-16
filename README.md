@@ -88,3 +88,12 @@ The resulting calibration is saved in `~/ros2_ws/src/camera_2d_lidar_calibration
 Evidently, the transformed points are close albeit can differ from any individual ROS bag. Recording more ROS bags and selecting the LiDAR points more carefully will improve the accuracy.
 
 ## How It Works
+
+After selecting the 2D LiDAR points, the RANSAC algorithm from scikit-learn (https://scikit-learn.org/stable/auto_examples/linear_model/plot_ransac.html) is used to robustly find the wall line when outliers can exist. This can fail if the gradient is infinite, so the axis with smallest range is used as the dependent variable.
+
+The vertical edges are found using a Probabilistic Hough Transform, followed by a filtering by the line's gradient to select the candidate vertical lines. After selecting the lines, the first principal component is computed using singular value decomposition, which computes the line that minimises the L2-norm to all line's endpoints. This new line is used as a single representative for a vertical edge of the wall.
+
+After computing the vertical edges, the centre line of the chessboard is projected in the camera frame until it intersects the plane spanned by the vertical edges and the common normal to the chessboard and vertical edge. This corresponds to an estimated correspondence with the edges of the wall that were detected by the 2D LiDAR scans.
+
+After finding these correspondence across all ROS bags, the SE(3) transformation and scaling is computed using `cv2.estimateAffine3D(wall_edge_camera_frame_points, wall_edge_lidar_points, force_rotation=True)`.
+
