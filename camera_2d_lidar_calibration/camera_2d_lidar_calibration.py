@@ -12,12 +12,9 @@ from tkinter import ttk
 from pathlib import Path
 import sensor_msgs_py.point_cloud2 as pc2
 import numpy as np
-from rcl_interfaces.msg import SetParametersResult
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_tkagg as tkagg 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from scipy.spatial.distance import pdist, squareform
-import time
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn import linear_model
 from datetime import datetime
@@ -494,6 +491,10 @@ class BagToImageAndScans(Node):
 
 
 def get_vertical_and_horizontal_lines(img:np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Thresholds large and small gradients to detect vertical and horizontal lines respectively. 
+    This will fail if the camera is rotated at an angle, so thresholds may require fine-tuning.
+    """
     dst = cv2.Canny(img, 50, 200, None, 3)
 
     # Copy edges to the images that will display the results in BGR
@@ -519,6 +520,10 @@ def get_vertical_and_horizontal_lines(img:np.ndarray) -> tuple[np.ndarray, np.nd
     return (cdstP, np.array(vertical_lines), np.array(horizontal_lines))
 
 def get_detected_chessboard(img:np.ndarray, camera_params:CameraParameters, chessboard_size=(11,8), square_size=2.0):
+    """
+    Uses real-world properties of chessboard to define a chessboard frame where Z points perpendicular from the chessboard towards camera, X points width-wise and Y points height-wise.
+    Computes the extrinsic matrix to the camera frame relative to this chessboard frame.
+    """
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img_size = (gray.shape[1], gray.shape[0])
     
@@ -624,7 +629,7 @@ def first_principal_component(points:np.ndarray):
 
 def ransac(points:np.ndarray, plotting=True, ransac_plot_title='RANSAC Regression', ransac_window_title='RANSAC Regression'):
     """
-    Apply RANSAC on 2D points.
+    Applies RANSAC. Chooses dependent variable to be the one with smallest range to avoid potentially infinite gradients. This can fail if the variables have different units.
     """
     ranges = points.max(axis=0) - points.min(axis=0)
     smallest_range_axis = np.argmin(ranges)
@@ -823,7 +828,8 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
     transformation = np.vstack([rigid_transformation, np.array([0,0,0,1])])
 
 
-    # test projection of a point from camera into lidar
+    # test projection of points from camera frame into lidar frame
+
     # test_points = np.array([1/2*(projected_left_ray+projected_right_ray)])
     test_points = np.linspace(projected_left_ray-1*(projected_right_ray-projected_left_ray), projected_right_ray+1*(projected_right_ray-projected_left_ray), 10)
     
@@ -889,11 +895,6 @@ def main(args=None):
         
         for image_and_scan in image_and_scan_list:
             image_and_scan.set_undistorted_image(undistort_image(image_and_scan.get_image(), camera_params))
-        
-        # img, vertical_lines, horizontal_lines = get_vertical_and_horizontal_lines(image_and_scan_list[0].get_undistorted_image())
-        # cv2.imshow("undistorted", img)
-        # cv2.waitKey()
-        
 
         updated_image_and_scan_list = []
 
@@ -904,7 +905,6 @@ def main(args=None):
 
         image_and_scan_list = updated_image_and_scan_list
 
-
         updated_image_and_scan_list = []
 
         for image_and_scan in image_and_scan_list:
@@ -914,8 +914,6 @@ def main(args=None):
 
         camera_lidar_calibration(camera_params,updated_image_and_scan_list)
 
-
-        # rclpy.spin(bag_to_image_and_scans)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
 
