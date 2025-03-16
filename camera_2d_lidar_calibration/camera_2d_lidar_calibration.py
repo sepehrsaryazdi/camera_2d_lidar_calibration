@@ -622,7 +622,7 @@ def first_principal_component(points:np.ndarray):
 
     return (mean, first_component, std_first_component)
 
-def ransac(points:np.ndarray, ransac_plot_title='RANSAC Regression', ransac_window_title='RANSAC Regression'):
+def ransac(points:np.ndarray, plotting=True, ransac_plot_title='RANSAC Regression', ransac_window_title='RANSAC Regression'):
     """
     Apply RANSAC on 2D points.
     """
@@ -652,30 +652,31 @@ def ransac(points:np.ndarray, ransac_plot_title='RANSAC Regression', ransac_wind
 
     # Compare estimated coefficients
 
-    plt.figure()
-    man = plt.get_current_fig_manager()
-    man.set_window_title(ransac_window_title)    
-    lw = 2
-    plt.scatter(
-        points[inlier_mask,0], points[inlier_mask,1], color="gold", marker=".", label="Inliers"
-    )
-    plt.scatter(
-        points[outlier_mask,0], points[outlier_mask,1], color="red", marker=".", label="Outliers"
-    )
-    plt.plot(
-        reconstructed_line[:,0],
-        reconstructed_line[:,1],
-        color="cornflowerblue",
-        linewidth=lw,
-        label="RANSAC regressor",
-    )
-    plt.legend(loc="lower right")
-    plt.xlabel("x")
-    plt.ylabel("y")
-    plt.title(ransac_plot_title)
-    plt.show(block=False)
-    plt.pause(0.01)
-    
+    if plotting:
+        plt.figure()
+        man = plt.get_current_fig_manager()
+        man.set_window_title(ransac_window_title)    
+        lw = 2
+        plt.scatter(
+            points[inlier_mask,0], points[inlier_mask,1], color="gold", marker=".", label="Inliers"
+        )
+        plt.scatter(
+            points[outlier_mask,0], points[outlier_mask,1], color="red", marker=".", label="Outliers"
+        )
+        plt.plot(
+            reconstructed_line[:,0],
+            reconstructed_line[:,1],
+            color="cornflowerblue",
+            linewidth=lw,
+            label="RANSAC regressor",
+        )
+        plt.legend(loc="lower right")
+        plt.xlabel("x")
+        plt.ylabel("y")
+        plt.title(ransac_plot_title)
+        plt.show(block=False)
+        plt.pause(0.01)
+        
     return reconstructed_line
 
 
@@ -750,7 +751,7 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
         
         selected_lidar_points = image_and_scan.get_selected_lidar_points()
         selected_lidar_points_xy = np.array([[point[0],point[1]] for point in selected_lidar_points])
-        lidar_wall_line = ransac(selected_lidar_points_xy, ransac_plot_title='RANSAC Detection',ransac_window_title=f"RANSAC Detection - Bag: {image_and_scan.get_bag_name()}")
+        lidar_wall_line = ransac(selected_lidar_points_xy, plotting=plotting, ransac_plot_title='RANSAC Detection',ransac_window_title=f"RANSAC Detection - Bag: {image_and_scan.get_bag_name()}")
 
         lidar_wall_left = lidar_wall_line[0,:]
         lidar_wall_right = lidar_wall_line[1,:]
