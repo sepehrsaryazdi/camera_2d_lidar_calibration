@@ -17,12 +17,12 @@ setup(
         # Install config files
         (os.path.join("share", package_name, "config"), glob("config/*.yaml")),
     ],
-    install_requires=['setuptools', 'opencv-python','tk', 'matplotlib','scikit-learn','numpy<2.0'],
+    install_requires=['setuptools', 'opencv-python>=4.11.0','tk', 'matplotlib>=3.5.1','scikit-learn>=1.6.1','numpy<2.0'],
     zip_safe=True,
     maintainer='sepehr',
     maintainer_email='sepehr.saryazdi@gmail.com',
     description='ROS2 Bag to Camera and 2D LiDAR Calibration Package.',
-    license='Apache-2.0',
+    license='MIT License',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
