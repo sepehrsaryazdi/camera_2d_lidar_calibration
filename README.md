@@ -84,7 +84,7 @@ As a sanity check, a set of test points from the camera frame are projected into
 <img src="readme_pictures/transformed_points.png" height="400">
 </p>
 
-The resulting calibration is saved in `~/ros2_ws/src/camera_2d_lidar_calibration/results/camera_2d_lidar_calibration_transformation_result_{timestamp}.txt`, alongside any relevant metadata. 
+The resulting calibration is saved in `~/ros2_ws/src/camera_2d_lidar_calibration/results/camera_2d_lidar_calibration_transformation_result_{timestamp}/`, alongside any relevant data. 
 
 Evidently, the transformed points are close albeit can differ from any individual ROS bag. Recording more ROS bags and selecting the LiDAR points more carefully will improve the accuracy.
 
