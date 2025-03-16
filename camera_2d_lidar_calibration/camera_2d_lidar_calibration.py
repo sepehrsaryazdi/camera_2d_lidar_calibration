@@ -49,9 +49,9 @@ class ImageAndScans:
     def concatenate_scans_to_points(self, indices=[0]) -> np.ndarray:
         scans = self.get_scans()
         laser_projection = laser_geometry.LaserProjection()
-        projected_scans = [laser_projection.projectLaser(scan) for scan in scans]
-        scans_numpy = np.array([pc2.read_points(scan) for scan in projected_scans])
-        scans_numpy = scans_numpy[np.array(indices)]
+        selected_scans = [laser_projection.projectLaser(scans[i]) for i in indices]
+        
+        scans_numpy = [pc2.read_points(scan) for scan in selected_scans]
         concatenated_scans = np.concatenate(scans_numpy)
         return concatenated_scans # x,y,z,intensity,index
     
@@ -771,7 +771,8 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
         ax.set_ylabel('y')
         ax.set_title('Detected 2D LiDAR Wall')
         if plotting:
-            plt.show()
+            plt.show(block=False)
+            plt.pause(0.01)
         # cv2.waitKey()
 
 
@@ -800,7 +801,8 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
         ax.legend()
         # plt.plot()
         if plotting:
-            plt.show()
+            plt.show(block=False)
+            plt.pause(0.01)
         
         wall_edge_camera_frame_points.append(projected_left_ray)
         wall_edge_lidar_points.append(lidar_wall_left)
@@ -843,7 +845,8 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
     ax.legend()
     # plt.plot()
     if plotting:
-        plt.show()
+        plt.show(block=False)
+        plt.pause(0.01)
 
     transformed_points = []
     for test_point in test_points:
@@ -864,11 +867,12 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_title('Detected 2D LiDAR Wall - Reprojection Test Transformed Points')
-    if plotting:
-        plt.show()
+    
 
     save_camera_lidar_calibration_results(image_and_scan_list, transformation, scale)
 
+    if plotting:
+        plt.show()
 
 
 def main(args=None):
