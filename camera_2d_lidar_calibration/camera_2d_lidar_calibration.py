@@ -828,7 +828,7 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
     transformation = np.vstack([rigid_transformation, np.array([0,0,0,1])])
 
 
-    # test projection of points from camera frame into lidar frame
+    # test projection of points from camera frame into lidar frame for last bag
 
     # test_points = np.array([1/2*(projected_left_ray+projected_right_ray)])
     test_points = np.linspace(projected_left_ray-1*(projected_right_ray-projected_left_ray), projected_right_ray+1*(projected_right_ray-projected_left_ray), 10)
