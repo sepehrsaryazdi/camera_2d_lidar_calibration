@@ -10,7 +10,7 @@ This calibration method relies on the following assumptions:
 2. The LiDAR is scanning the world in a plane that is parallel to the ground.
 3. The chessboard is placed perpendicular to the ground, and is oriented horizontally along its width, with its lowest portion parallel to the ground.
 4. The chessboard is supported by a wall with straight edges that are in-view of the camera and discernible from the surroundings.
-5. The camera is oriented such that the left/right sides of the wall appears in the left/right sides of the image, respectively.
+5. The camera is oriented such that the left/right sides of the wall appear in the left/right sides of the image respectively.
 6. The LiDAR scans are oriented so that ordering of wall sides agree with the camera, i.e. left and right.
 
 To see a typical example that satisfies the assumptions above, refer to the following image corresponding to Turtlebot3 Burger. Its 2D LiDAR is located at the top of the robot and scans the world in a plane parallel to the ground.
