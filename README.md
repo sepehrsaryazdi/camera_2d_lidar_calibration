@@ -54,7 +54,9 @@ ros2 launch camera_2d_lidar_calibration camera_2d_lidar_calibration.launch.py
 
 After running, an interface will appear with instructions on selecting 2D LiDAR points that represent the wall containing the chessboard pattern. To select the points, first change the sliders that control the starting and ending indices of scans from the ROS bag to desired values. Then, use the Zoom feature to zoom into a particular region and click `Select Points`. Once finished, click `Done` and repeat this for the other ROS bags.
 
+<p align="center">
 [Usage Recording](https://github.com/user-attachments/assets/a4dc3871-9482-4c4d-9de2-47aa22e072f6)
+</p>
 
 <p align="center">
 <img src="readme_pictures/lidar_2d_selection_menu.png" height="400">
