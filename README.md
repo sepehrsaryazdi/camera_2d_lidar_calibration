@@ -6,7 +6,7 @@ This is a Camera and 2D LiDAR calibration library that computes the SE(3) transf
 
 This calibration method relies on the following assumptions:
 
-1. A square chessboard pattern, with known real-world square size and number of squares, is within full-view of the camera.
+1. A square chessboard pattern, with known real-world square size and number of squares, is within full-view of the camera. A copy of this chessboard is provided in `chessboard.pdf`.
 2. The LiDAR is scanning the world in a plane that is parallel to the ground.
 3. The chessboard is placed perpendicular to the ground, and is oriented horizontally along its width, with its lowest portion parallel to the ground.
 4. The chessboard is supported by a wall with straight edges that are in-view of the camera and discernible from the surroundings.
