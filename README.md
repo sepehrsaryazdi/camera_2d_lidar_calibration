@@ -59,7 +59,7 @@ After running, an interface will appear with instructions on selecting 2D LiDAR 
 </div> -->
 
 <video width="600" autoplay loop muted>
-  <source src="https://github.com/user-attachments/assets/a4dc3871-9482-4c4d-9de2-47aa22e072f6" type="video/webm">
+  <source src="https://github.com/sepehrsaryazdi/camera_2d_lidar_calibration/releases/download/v1.0.0/usage.webm" type="video/webm">
   Your browser does not support the video tag.
 </video>
 
