@@ -56,10 +56,12 @@ After running, an interface will appear with instructions on selecting 2D LiDAR 
 
 <div align="center">
   <video controls autoplay muted>
-  <source src="https://github.com/user-attachments/assets/a4dc3871-9482-4c4d-9de2-47aa22e072f6" type="video/webm"/>
+  <source src="https://github.com/user-attachments/assets/a4dc3871-9482-4c4d-9de2-47aa22e072f6" type="video/webm">
   </video>
-  <!-- src="https://github.com/user-attachments/assets/a4dc3871-9482-4c4d-9de2-47aa22e072f6" width="400" /> -->
 </div>
+
+<!-- src="https://github.com/user-attachments/assets/a4dc3871-9482-4c4d-9de2-47aa22e072f6" width="400" /> -->
+
 
 <!-- [Usage Recording](https://github.com/user-attachments/assets/a4dc3871-9482-4c4d-9de2-47aa22e072f6) -->
 
