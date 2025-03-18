@@ -6,7 +6,7 @@ This is a Camera and 2D LiDAR calibration library that computes the SE(3) transf
 
 This calibration method relies on the following environment setup and assumptions:
 
-1. A square chessboard pattern is within full-view of the camera. A copy of this chessboard is provided in `chessboard.pdf`. We do not necessarily require the dimensions of the wall, but we need dimensions of the chessboard, specifically the physical chessboard square size and the number of squares.
+1. A square chessboard pattern is within full-view of the camera. A copy of this chessboard is provided in `chessboard.pdf`. We do not necessarily require the dimensions of the wall, but we need dimensions of the chessboard; specifically the physical chessboard square size and the number of squares.
 2. Corners on the chessboard will be used to determine the horizontal direction. Any line defined by a row of corners should be parallel with the ground plane and orthogonal to the edges of the wall.
 4. The chessboard is orthogonal to the ground plane. The robot's LiDAR can be at any height, so long as its rays intersect with the wall.
 4. The LiDAR is scanning the world in a plane that is parallel to the ground.
