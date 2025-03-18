@@ -2,16 +2,19 @@
 
 This is a Camera and 2D LiDAR calibration library that computes the SE(3) transformation from the camera frame to the 2D LiDAR frame. 
 
-## Assumptions
+## Assumptions and Environment Setup
 
-This calibration method relies on the following assumptions:
+This calibration method relies on the following environment setup and assumptions:
 
-1. A square chessboard pattern, with known real-world square size and number of squares, is within full-view of the camera. A copy of this chessboard is provided in `chessboard.pdf`.
-2. The LiDAR is scanning the world in a plane that is parallel to the ground.
-3. The chessboard is placed perpendicular to the ground, and is oriented horizontally along its width, with its lowest portion parallel to the ground.
-4. The chessboard is supported by a wall with straight edges that are in-view of the camera and discernible from the surroundings.
-5. The camera is oriented such that the left/right sides of the wall appear in the left/right sides of the image respectively.
-6. The LiDAR scans are oriented so that ordering of wall sides agree with the camera, i.e. left and right.
+1. A square chessboard pattern is within full-view of the camera. A copy of this chessboard is provided in `chessboard.pdf`. We do not necessarily require the dimensions of the wall, but we need dimensions of the chessboard, specifically the physical chessboard square size and the number of squares.
+2. Corners on the chessboard will be used to determine the horizontal direction. Any line defined by a row of corners should be parallel with the ground plane and orthogonal to the edges of the wall.
+4. The chessboard is orthogonal to the ground plane. The robot's LiDAR can be at any height, so long as its rays intersect with the wall.
+4. The LiDAR is scanning the world in a plane that is parallel to the ground.
+5. The chessboard is placed perpendicular to the ground, and is oriented horizontally along its width, with its lowest portion parallel to the ground.
+6. The chessboard is supported by a wall with straight edges that are in-view of the camera and discernible from the surroundings.
+7. The left and right edges of the wall should be visible in the calibration images.
+8. Images from the camera are not flipped, i.e. the images are oriented such that the left/right sides of the wall appear in the left/right sides of the image respectively.
+9. The LiDAR scans, when viewed from the top, are oriented so that ordering of wall sides agree with the camera, i.e. left and right.
 
 To see a typical example that satisfies the assumptions above, refer to the following image corresponding to Turtlebot3 Burger. Its 2D LiDAR is located at the top of the robot and scans the world in a plane parallel to the ground.
 
@@ -25,6 +28,18 @@ In this example, both the chessboard and the edges of the wall are within full-v
 <img src="readme_pictures/camera_pov.png" height="200">
 <img src="readme_pictures/lidar_scans.png" height="200">
 </p>
+
+## Calibration Routine
+
+After setting up the environment, the following routine will produce the required ROS bags that will be fed into the library.
+
+1. Obtain the intrinsic and distortion parameters of the camera through any standard camera calibration method. Ensure the units of these parameters agree with the units of the chessboard.
+2. Setup the camera in an environment where you can recognise some features or structure in the LiDAR data (e.g. the boxes surrounding the Turtlebot in the picture above). This will assist with the calibration process later.
+3. Move either the camera or the wall and chessboard to a different position, ensuring that the left and right edges of the wall and chessboard are visible in the camera, and record a bag of approximately 10-20 seconds.
+4. Repeat step 3 for 5 to 10 times.
+5. Place the recorded bags in `~/ros2_ws/src/camera_2d_lidar_calibration/bags/`.
+6. Replace the `camera_intrinsic_matrix` and `distortion_coefficients` in `~/ros2_ws/src/camera_2d_lidar_calibration/config/params.yaml` with your camera's intrinsic and distortion parameters respectively.
+7. Install and run the camera 2D LiDAR calibration pipline using the steps below.
 
 
 ## Installation
@@ -41,18 +56,15 @@ colcon build --packages-select camera_2d_lidar_calibration # build ROS dependenc
 source install/setup.bash
 ```
 
-## Usage
+## Running
 
-To use this package, place the desired bags in `~/ros2_ws/src/camera_2d_lidar_calibration/bags/`. Ensure that the `$HOME` path variable is set correctly. Then, modify the `camera_intrinsic_matrix` and `distortion_coefficients` in `~/ros2_ws/src/camera_2d_lidar_calibration/config/params.yaml` to match the camera's parameters. These coefficients can be obtained from any standard camera calibration method.
-
-After setting the parameters, run the following:
+Ensure that the `$HOME` path variable is set correctly. After setting the parameters, run the following:
 
 ```
 ros2 launch camera_2d_lidar_calibration camera_2d_lidar_calibration.launch.py
 ```
 
-
-After running, an interface will appear with instructions on selecting 2D LiDAR points that represent the wall containing the chessboard pattern. To select the points, first change the sliders that control the starting and ending indices of scans from the ROS bag to desired values. Then, use the Zoom feature to zoom into a particular region and click `Select Points`. Once finished, click `Done` and repeat this for the other ROS bags.
+After running, an interface will appear with instructions on selecting 2D LiDAR points that represent the wall containing the chessboard pattern. Note that the interface appears for one ROS bag at a time, and all 2D points of the LiDAR for each bag are accumulated for each interface. To select the points, first change the sliders that control the starting and ending indices of scans from the ROS bag to desired values. Then, use `matplotlib`'s zoom feature, enabled by default, to zoom into a particular region and click `Select Points`. Once finished, click `Done` and repeat this for the other ROS bags. To see this process, watch the video below.
 
 <div align="center">
   <video src="https://github.com/user-attachments/assets/a4dc3871-9482-4c4d-9de2-47aa22e072f6" width="400"></video>
@@ -68,7 +80,7 @@ After running, an interface will appear with instructions on selecting 2D LiDAR 
 <img src="readme_pictures/lidar_2d_selection_zoom_out.png" height="400">
 </p>
 
-To correspond the 2D LiDAR points with the camera frame, an interface will similarly appear with instructions on selecting lines that correspond to the edges of the wall. This interface works similarly to the previous interface.
+After selecting the 2D LiDAR scans, another interface will appear to correspond the 2D LiDAR points with the camera frame for each ROS bag. This interface will contain the relevant instructions on selecting lines that correspond to the edges of the wall, and work similarly to the previous interface.
 
 <p align="center">
 <img src="readme_pictures/wall_edge_menu.png" height="400">
