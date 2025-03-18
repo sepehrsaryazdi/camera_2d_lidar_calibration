@@ -9,6 +9,6 @@ camera_2d_lidar_calibration:
       p1: 0.001855
       p2: -0.015835
       k: -10.836512
-    chessboard_square_size: 5.0 # Must be in the same units as camera intrinsic matrix and distortion coefficients. The provided numbers are in units of cm.
+    chessboard_square_size: 2.0 # Must be in the same units as camera intrinsic matrix and distortion coefficients. The provided numbers are in units of cm.
     chessboard_inner_width: 11 # Chessboard inner width, defined by OpenCV (https://docs.opencv.org/4.x/d4/d94/tutorial_camera_calibration.html)
     chessboard_inner_height: 8 # Chessboard inner height, defined by OpenCV (https://docs.opencv.org/4.x/d4/d94/tutorial_camera_calibration.html)
