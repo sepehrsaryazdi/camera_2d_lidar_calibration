@@ -414,6 +414,16 @@ class CameraParameters:
         
     def get_camera_parameters(self) -> tuple[np.ndarray, list]:
         return (self.camera_intrinsic_matrix.copy(), self.distortion_coeffs.copy())
+   
+class ChessboardParameters:
+    def __init__(self, chessboard_square_size, chessboard_inner_width, chessboard_inner_height):
+        self.chessboard_square_size = chessboard_square_size
+        self.chessboard_inner_width = chessboard_inner_width
+        self.chessboard_inner_height = chessboard_inner_height
+        
+    def get_chessboard_parameters(self) -> tuple[np.ndarray, list]:
+        return (self.chessboard_square_size, self.chessboard_inner_width, self.chessboard_inner_height)
+    
 
 class BagToImageAndScans(Node):
 
@@ -427,6 +437,9 @@ class BagToImageAndScans(Node):
         self.declare_parameter("distortion_coefficients.p1", 0.0)
         self.declare_parameter("distortion_coefficients.p2", 0.0)
         self.declare_parameter("distortion_coefficients.k3", 0.0)
+        self.declare_parameter("chessboard_square_size", 2.0)
+        self.declare_parameter("chessboard_inner_width", 11)
+        self.declare_parameter("chessboard_inner_height", 8)
 
         # Retrieve parameters
         camera_intrinsic_matrix = self.get_parameter("camera_intrinsic_matrix").value
@@ -435,9 +448,13 @@ class BagToImageAndScans(Node):
         p1 = self.get_parameter("distortion_coefficients.p1").value
         p2 = self.get_parameter("distortion_coefficients.p2").value
         k3 = self.get_parameter("distortion_coefficients.k3").value
+        chessboard_square_size = self.get_parameter("chessboard_square_size").value
+        chessboard_inner_width = self.get_parameter("chessboard_inner_width").value
+        chessboard_inner_height = self.get_parameter("chessboard_inner_height").value
+
 
         self.camera_params = CameraParameters(np.array(camera_intrinsic_matrix).reshape(3,3), k1,k2,p1,p2,k3)
-
+        self.chessboard_params = ChessboardParameters(chessboard_square_size, chessboard_inner_width, chessboard_inner_height)
 
         self.image_and_scan_list = []
 
@@ -483,11 +500,14 @@ class BagToImageAndScans(Node):
                 scans.append(decoded_data)      
         return ImageAndScans(image, scans, bag_file_name)
 
-    def get_camera_params(self) -> list[CameraParameters]:
+    def get_camera_params(self) -> CameraParameters:
         return self.camera_params
     
     def get_image_and_laser_scans(self) -> list[ImageAndScans]:
         return self.image_and_scan_list.copy()
+    
+    def get_chessboard_params(self) -> ChessboardParameters:
+        return self.chessboard_params
 
 
 def get_vertical_and_horizontal_lines(img:np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -519,11 +539,14 @@ def get_vertical_and_horizontal_lines(img:np.ndarray) -> tuple[np.ndarray, np.nd
                 horizontal_lines.append([(l[0], l[1]), (l[2], l[3])])
     return (cdstP, np.array(vertical_lines), np.array(horizontal_lines))
 
-def get_detected_chessboard(img:np.ndarray, camera_params:CameraParameters, chessboard_size=(11,8), square_size=2.0):
+def get_detected_chessboard(img:np.ndarray, camera_params:CameraParameters, chessboard_params:ChessboardParameters):
     """
     Uses real-world properties of chessboard to define a chessboard frame where Z points perpendicular from the chessboard towards camera, X points width-wise and Y points height-wise.
     Computes the extrinsic matrix to the camera frame relative to this chessboard frame.
     """
+    square_size, chessboard_inner_width, chesboard_inner_height = chessboard_params.get_chessboard_parameters()
+    chessboard_size = (int(chessboard_inner_width), int(chesboard_inner_height))
+    
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img_size = (gray.shape[1], gray.shape[0])
     
@@ -721,7 +744,7 @@ def save_camera_lidar_calibration_results(image_and_scan_list:list[ImageAndScans
     print(f"Camera 2D LiDAR calibration results saved to {filename}")
 
 
-def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list:list[ImageAndScans], plotting=True):
+def camera_lidar_calibration(camera_params:CameraParameters, chessboard_params:ChessboardParameters, image_and_scan_list:list[ImageAndScans], plotting=True):
     """
     Performs Camera and 2D LiDAR calibration by assuming that the edges of wall correspond to edges of the selected points in scan.
     """
@@ -739,7 +762,7 @@ def camera_lidar_calibration(camera_params:CameraParameters, image_and_scan_list
         vertical_left_line = np.array(get_line_end_points(vertical_left_lines.reshape(-1,2)))
         vertical_right_line =  np.array(get_line_end_points(vertical_right_lines.reshape(-1,2)))
 
-        corners, corners_3d_world, extrinsic_matrix = get_detected_chessboard(img, camera_params)
+        corners, corners_3d_world, extrinsic_matrix = get_detected_chessboard(img, camera_params, chessboard_params)
         corners_camera_frame = np.array([((extrinsic_matrix @ np.vstack([corner_3d.reshape(3,1),[1]]))[:3,:]).reshape(3) for corner_3d in corners_3d_world])
         vertical_left_line_camera_frame = chessboard_pixels_to_camera_frame(vertical_left_line, camera_params, extrinsic_matrix)
         vertical_right_line_camera_frame = chessboard_pixels_to_camera_frame(vertical_right_line, camera_params, extrinsic_matrix)
@@ -894,6 +917,7 @@ def main(args=None):
         bag_to_image_and_scans = BagToImageAndScans()
         
         camera_params = bag_to_image_and_scans.get_camera_params()
+        chessboard_params = bag_to_image_and_scans.get_chessboard_params()
         image_and_scan_list = bag_to_image_and_scans.get_image_and_laser_scans()
         
         for image_and_scan in image_and_scan_list:
@@ -915,7 +939,7 @@ def main(args=None):
             image_and_scan = select_lines_interface.run()
             updated_image_and_scan_list.append(image_and_scan)
 
-        camera_lidar_calibration(camera_params,updated_image_and_scan_list)
+        camera_lidar_calibration(camera_params,chessboard_params,updated_image_and_scan_list)
 
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
