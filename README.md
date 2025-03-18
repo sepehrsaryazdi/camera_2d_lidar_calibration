@@ -14,7 +14,7 @@ This calibration method relies on the following environment setup and assumption
 7. Images from the camera are not flipped, i.e. the images are oriented such that the left/right sides of the wall appear in the left/right sides of the image respectively.
 8. The LiDAR scans, when viewed from the top, are oriented so that ordering of wall sides agree with the camera, i.e. left and right.
 
-To see a typical example that satisfies the assumptions above, refer to the following image corresponding to Turtlebot3 Burger. Its 2D LiDAR is located at the top of the robot and scans the world in a plane parallel to the ground.
+To see a typical example that satisfies the assumptions above, refer to the following image corresponding to TurtleBot3 Burger. Its 2D LiDAR is located at the top of the robot and scans the world in a plane parallel to the ground.
 
 <p align="center">
 <img src="readme_pictures/thumbnail_IMG_5137.jpg" width="400">
@@ -32,7 +32,7 @@ In this example, both the chessboard and the left/right edges of the wall are wi
 After setting up the environment, the following routine will produce the required ROS bags that will be fed into the library.
 
 1. Obtain the intrinsic and distortion parameters of the camera through any standard camera calibration method. Ensure the units of these parameters agree with the units of the chessboard.
-2. Setup the camera in an environment where you can recognise some features or structure in the LiDAR data (e.g. the boxes surrounding the Turtlebot in the picture above). This setup will assist in the calibration process later.
+2. Setup the camera in an environment where you can recognise some features or structure in the LiDAR data (e.g. the boxes surrounding the TurtleBot in the picture above). This setup will assist in the calibration process later.
 3. Move either the camera or the wall and chessboard to a different position, ensuring that the left and right edges of the wall and chessboard are visible in the camera, and record a bag of approximately 10-20 seconds.
 4. Repeat step 3 for 5 to 10 times.
 5. Place the recorded bags in `~/ros2_ws/src/camera_2d_lidar_calibration/bags/`.
