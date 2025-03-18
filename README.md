@@ -58,7 +58,7 @@ source install/setup.bash
 
 ## Running
 
-Ensure that the `$HOME` path variable is set correctly. After setting the parameters, run the following:
+Ensure that the `$HOME` path variable is set correctly and run the following:
 
 ```
 ros2 launch camera_2d_lidar_calibration camera_2d_lidar_calibration.launch.py
