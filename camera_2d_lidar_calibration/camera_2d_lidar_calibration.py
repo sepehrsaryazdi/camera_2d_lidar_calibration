@@ -754,7 +754,7 @@ def camera_lidar_calibration(camera_params:CameraParameters, chessboard_params:C
 
     for image_and_scan in image_and_scan_list:
 
-        img = undistort_image(image_and_scan.get_image(), camera_params)
+        img = image_and_scan.get_undistorted_image()
 
         vertical_left_lines = image_and_scan.get_selected_left_lines()
         vertical_right_lines = image_and_scan.get_selected_right_lines()
