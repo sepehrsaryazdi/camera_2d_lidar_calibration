@@ -431,7 +431,9 @@ class BagToImageAndScans(Node):
         super().__init__('camera_2d_lidar_calibration')
         
         # Declare parameters with default values
-        self.declare_parameter("camera_intrinsic_matrix", [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0])
+        self.declare_parameter("camera_intrinsic_matrix", [1.0,0.0,0.0,
+                                                            0.0,1.0,0.0,
+                                                            0.0,0.0,1.0])
         self.declare_parameter("distortion_coefficients.k1", 0.0)
         self.declare_parameter("distortion_coefficients.k2", 0.0)
         self.declare_parameter("distortion_coefficients.p1", 0.0)
