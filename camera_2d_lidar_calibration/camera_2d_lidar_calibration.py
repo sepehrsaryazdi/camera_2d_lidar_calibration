@@ -770,12 +770,13 @@ def camera_lidar_calibration(camera_params:CameraParameters, chessboard_params:C
         chessboard_position = (extrinsic_matrix @ (np.array([0,0,0,1]).reshape(4,1)))[:3,:]
         chessboard_x_vec = (extrinsic_matrix @ (np.array([1,0,0,1]).reshape(4,1)))[:3,:] - chessboard_position
         chessboard_y_vec = (extrinsic_matrix @ (np.array([0,1,0,1]).reshape(4,1)))[:3,:] - chessboard_position
+        chessboard_normal = np.cross(chessboard_x_vec.reshape(3), chessboard_y_vec.reshape(3))
         
         line_direction = vertical_left_line_camera_frame[1] - vertical_left_line_camera_frame[0]
-        projected_left_ray = compute_ray_plane_intersection(chessboard_position, chessboard_x_vec, vertical_left_line_camera_frame[0], line_direction, np.cross(line_direction.reshape(3), chessboard_x_vec.reshape(3)))
+        projected_left_ray = compute_ray_plane_intersection(chessboard_position, chessboard_x_vec, vertical_left_line_camera_frame[0], line_direction, chessboard_normal)
         
         line_direction = vertical_right_line_camera_frame[1] - vertical_right_line_camera_frame[0]
-        projected_right_ray = compute_ray_plane_intersection(chessboard_position, chessboard_x_vec, vertical_right_line_camera_frame[0], line_direction, np.cross(line_direction.reshape(3), chessboard_x_vec.reshape(3)))
+        projected_right_ray = compute_ray_plane_intersection(chessboard_position, chessboard_x_vec, vertical_right_line_camera_frame[0], line_direction, chessboard_normal)
         
         selected_lidar_points = image_and_scan.get_selected_lidar_points()
         selected_lidar_points_xy = np.array([[point[0],point[1]] for point in selected_lidar_points])
