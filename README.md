@@ -9,7 +9,7 @@ This calibration method relies on the following environment setup and assumption
 1. A square chessboard pattern is within full-view of the camera, and supported by a wall with straight edges. A copy of this chessboard is provided in `chessboard.pdf`. The software does not necessarily require the dimensions of the wall,  but it needs dimensions of the chessboard; specifically the chessboard square's sizes and the total number of squares.
 2. Corners on the chessboard will be used to determine the horizontal direction. Any line defined by a row of corners should be parallel with the ground plane and orthogonal to the edges of the wall.
 4. The chessboard is orthogonal to the ground plane.
-5. The LiDAR is scanning the world in a plane that is parallel to the ground. The robot's LiDAR can be placed at any height, so long as its rays intersect with the wall.
+5. The LiDAR is scanning the world in a plane that is parallel to the ground. The LiDAR can be placed at any height, so long as its rays intersect with the wall.
 6. The left and right edges of the wall should be visible in the calibration image, and are discernible from the surroundings.
 7. Images from the camera are not flipped, i.e. the images are oriented such that the left/right sides of the wall appear in the left/right sides of the image respectively.
 8. The LiDAR scans, when viewed from the top, are oriented so that ordering of wall sides agree with the camera, i.e. left and right.
