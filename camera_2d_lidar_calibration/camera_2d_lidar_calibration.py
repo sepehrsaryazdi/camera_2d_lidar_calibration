@@ -123,7 +123,7 @@ class ImageAndScans:
 
 class SelectLinesInterface:
     """
-    Class for selecting lines corresponding to edge of ball wall.
+    Class for selecting lines corresponding to edge of wall.
     """
     def __init__(self, image_and_scans:ImageAndScans):
         assert isinstance(image_and_scans, ImageAndScans), "Error: image_and_scans must be of type ImageAndScans."
