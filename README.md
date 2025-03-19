@@ -80,7 +80,7 @@ After running, an interface will appear with instructions on selecting 2D LiDAR 
 <img src="readme_pictures/lidar_2d_selection_zoom_out.png" height="400">
 </p>
 
-After selecting the 2D LiDAR scans, another interface will appear to match the 2D LiDAR points with the camera frame for each ROS bag. This interface will contain the relevant instructions on selecting vertical lines that correspond to the edges of the wall, and works similarly to the previous interface. In the current implementation, at least one edge point of each vertical line must be in the zoomed window to be selected.
+After selecting the 2D LiDAR scans, another interface will appear to match the 2D LiDAR points with the camera frame for each ROS bag. This interface will contain the relevant instructions on selecting vertical lines that correspond to the edges of the wall, and works similarly to the previous interface. In the current implementation, at least one endpoint of each vertical line must be in the zoomed window to be selected.
 
 <p align="center">
 <img src="readme_pictures/wall_edge_menu.png" height="400">
