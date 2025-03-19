@@ -111,7 +111,7 @@ After selecting the 2D LiDAR points, the RANSAC algorithm from scikit-learn (htt
 
 The vertical edges are found using a Probabilistic Hough Transform, followed by a filtering by the line's gradient to select the candidate vertical lines. After selecting the lines, the first principal component is computed using singular value decomposition, which computes the line that minimises the L2-norm to all lines' endpoints. This new line is used as a single representative for a vertical edge of the wall.
 
-After computing the vertical edges, the centre line of the chessboard is projected in the camera frame until it intersects the plane spanned by the vertical edges and the common normal to the chessboard and vertical edge. This corresponds to an estimated correspondence with the edges of the wall that were detected by the 2D LiDAR scans.
+After computing the vertical edges, the centre horizontal line of the chessboard is extended in the camera frame until it intersects the two planes spanned by each vertical edge and the normal vector of the chessboard. With this procedure, the camera frame positions of the edges of the wall are heuristically estimated using the vertical lines.
 
-After finding these correspondence across all ROS bags, the SE(3) transformation and scaling is computed using `cv2.estimateAffine3D(wall_edge_camera_frame_points, wall_edge_lidar_points, force_rotation=True)`.
+After finsing these two positions of the wall's edges in the camera frame and the LiDAR frame, this forms two correspondences between the frames. Computing these correspondences across all ROS bags, the SE(3) transformation and scaling is computed using `cv2.estimateAffine3D(wall_edge_camera_frame_points, wall_edge_lidar_points, force_rotation=True)`.
 
