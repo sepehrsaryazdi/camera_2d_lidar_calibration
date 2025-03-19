@@ -24,11 +24,11 @@ In this example, both the chessboard and the left/right edges of the wall are wi
 
 <p align="center">
 <img src="readme_pictures/camera_pov.png" height="200">
-Camera POV
+<img src="readme_pictures/lidar_scans.png" height="200">
+</p>
 
 <p align="center">
-<img src="readme_pictures/lidar_scans.png" height="200">
-RViz2 Visualisation of LiDAR Scans - The bottom three sharp lines correspond to the boxes, and the top line corresponds to the wall.
+Camera POV (left) and RViz2 Visualisation of LiDAR Scans (right). In the LiDAR scans, the bottom three sharp lines correspond to the boxes, and the top line corresponds to the wall.
 </p>
 
 ## Calibration Routine
