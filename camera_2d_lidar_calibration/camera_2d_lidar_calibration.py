@@ -24,7 +24,7 @@ home = Path.home()
 
 class ImageAndScans:
     def __init__(self, image:np.ndarray, scans:list[LaserScan], bag_name:str):
-        assert isinstance(image, np.ndarray), "Error: image must be of the form cv2.self.root"
+        assert isinstance(image, np.ndarray), "Error: image must be of the form np.ndarray"
         assert isinstance(scans , list), "Error: scans must be a list."
         for scan in scans:
             assert isinstance(scan, LaserScan), "Error: scans must contain LaserScan objects."
