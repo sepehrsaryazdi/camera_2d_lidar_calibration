@@ -41,7 +41,8 @@ After setting up the environment, the following routine will produce the require
 4. Repeat step 3 for 5 to 10 times.
 5. Place the recorded bags in `~/ros2_ws/src/camera_2d_lidar_calibration/bags/`.
 6. Replace the `camera_intrinsic_matrix` and `distortion_coefficients` in `~/ros2_ws/src/camera_2d_lidar_calibration/config/params.yaml` with your camera's intrinsic and distortion parameters respectively. Similarly, replace `chessboard_square_size` with the physical size of the chessboard's square in units that agree with the camera intrinsic matrix and distortion coefficients, and replace `chessboard_inner_width` and `chessboard_inner_height` according to the definitions used by OpenCV's [camera calibration library](https://docs.opencv.org/4.x/d4/d94/tutorial_camera_calibration.html).
-7. Install and run the camera and 2D LiDAR calibration pipline using the steps below.
+7. Ensure the `image_topic` and `scan_topic` ROS parameters are set to the corresponding image ROS topic and scan ROS topic within the bags respectively.
+8. Install and run the camera and 2D LiDAR calibration pipline using the steps below.
 
 
 ## Installation

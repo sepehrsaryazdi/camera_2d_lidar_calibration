@@ -443,6 +443,10 @@ class BagToImageAndScans(Node):
         self.declare_parameter("chessboard_inner_width", 11)
         self.declare_parameter("chessboard_inner_height", 8)
 
+        self.declare_parameter("image_topic", "/camera/image_raw")
+        self.declare_parameter("scan_topic", "/scan")
+
+
         # Retrieve parameters
         camera_intrinsic_matrix = self.get_parameter("camera_intrinsic_matrix").value
         k1 = self.get_parameter("distortion_coefficients.k1").value
@@ -454,6 +458,8 @@ class BagToImageAndScans(Node):
         chessboard_inner_width = self.get_parameter("chessboard_inner_width").value
         chessboard_inner_height = self.get_parameter("chessboard_inner_height").value
 
+        self.image_topic = self.get_parameter("image_topic").value
+        self.scan_topic = self.get_parameter("scan_topic").value
 
         self.camera_params = CameraParameters(np.array(camera_intrinsic_matrix).reshape(3,3), k1,k2,p1,p2,k3)
         self.chessboard_params = ChessboardParameters(chessboard_square_size, chessboard_inner_width, chessboard_inner_height)
@@ -485,7 +491,7 @@ class BagToImageAndScans(Node):
         scans = []
         while self.reader.has_next():
             msg = self.reader.read_next()
-            if msg[0] == '/camera/image_raw' and selected_image == False: # ignore other ROS topics in this bag
+            if msg[0] == self.image_topic and selected_image == False: # ignore other ROS topics in this bag
                 decoded_data = deserialize_message(msg[1], Image) # get serialized version of message and decode it
                 cvbridge = cv_bridge.CvBridge()
                 cv_image = cvbridge.imgmsg_to_cv2(decoded_data, desired_encoding='passthrough') # change ROS2 Image to cv2 image
@@ -496,7 +502,7 @@ class BagToImageAndScans(Node):
                 self.image_publisher.publish(msg[1])
                 self.get_logger().info(f'Published serialized data to /image')
             
-            if msg[0] == '/scan':
+            if msg[0] == self.scan_topic:
                 decoded_data = deserialize_message(msg[1], LaserScan) # get serialized version of message and decode it
                 self.lidar_publisher.publish(msg[1])
                 scans.append(decoded_data)      
